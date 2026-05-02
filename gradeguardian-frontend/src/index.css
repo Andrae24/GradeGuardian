@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  /* This connects the HTML class to the dark: variant */
+  --dark-mode: selector(.dark);
+}
+
+/* Ensure your base Tailwind directives are still here if you're using them */
+@layer base;
+@layer components;
+@layer utilities;
