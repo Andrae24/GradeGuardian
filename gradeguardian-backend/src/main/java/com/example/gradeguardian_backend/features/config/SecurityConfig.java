@@ -49,10 +49,11 @@ public class SecurityConfig {
         
         config.setAllowCredentials(true);
         
-        // Explicitly allowing your Vite frontend (Local and Production)
+        // Updated to include the specific origin shown in image_96603a.png
         config.setAllowedOrigins(List.of(
             "http://localhost:5173",
-            "https://gradeguardian.onrender.com"
+            "https://gradeguardian.onrender.com",
+            "https://gradeguardian-l6b2.onrender.com"
         )); 
         
         config.setAllowedHeaders(List.of("*")); 
