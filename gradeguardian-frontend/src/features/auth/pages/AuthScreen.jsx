@@ -9,9 +9,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function AuthScreen() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
-  // States: 'auth' (login/signup), 'forgot', 'verify', 'reset'
   const [stage, setStage] = useState('auth'); 
   
+  // --- CONFIGURATION: REPLACE THIS URL WITH YOUR RENDER BACKEND URL ---
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -28,14 +30,12 @@ export default function AuthScreen() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- STEP 2: FORGOT PASSWORD HANDLERS ---
-  
-  // 1. Request OTP
+  // --- FORGOT PASSWORD HANDLERS ---
   const handleRequestOTP = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/api/auth/forgot-password', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email }),
@@ -46,12 +46,11 @@ export default function AuthScreen() {
     finally { setIsLoading(false); }
   };
 
-  // 2. Verify OTP
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/api/auth/verify-otp', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, otp: formData.otp }),
@@ -62,7 +61,6 @@ export default function AuthScreen() {
     finally { setIsLoading(false); }
   };
 
-  // 3. Reset Password
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
@@ -71,7 +69,7 @@ export default function AuthScreen() {
     }
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/api/auth/reset-password', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -88,7 +86,6 @@ export default function AuthScreen() {
     finally { setIsLoading(false); }
   };
 
-  // Original Submit Handler (Login/Signup)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -103,7 +100,7 @@ export default function AuthScreen() {
       : { name: formData.name, email: formData.email, password: formData.password };
 
     try {
-      const response = await fetch(`http://localhost:8080${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -134,7 +131,6 @@ export default function AuthScreen() {
         layout
         className="w-full max-w-md bg-[#161B22] rounded-[2.5rem] shadow-2xl border border-slate-800 overflow-hidden relative"
       >
-        {/* Night Owl Glow Effect */}
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-violet-600/10 blur-[100px] rounded-full" />
         
         <div className="p-8 text-center border-b border-slate-800/50">
@@ -147,7 +143,6 @@ export default function AuthScreen() {
 
         <div className="p-8">
           <AnimatePresence mode="wait">
-            {/* STAGE: LOGIN / SIGNUP */}
             {stage === 'auth' && (
               <motion.div 
                 key="auth" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
@@ -192,7 +187,6 @@ export default function AuthScreen() {
               </motion.div>
             )}
 
-            {/* STAGE: FORGOT PASSWORD (EMAIL) */}
             {stage === 'forgot' && (
               <motion.div key="forgot" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                 <button onClick={() => setStage('auth')} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"><ChevronLeft size={16}/> Back</button>
@@ -207,7 +201,6 @@ export default function AuthScreen() {
               </motion.div>
             )}
 
-            {/* STAGE: VERIFY OTP */}
             {stage === 'verify' && (
               <motion.div key="verify" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
                 <div className="text-center space-y-2">
@@ -222,7 +215,6 @@ export default function AuthScreen() {
               </motion.div>
             )}
 
-            {/* STAGE: RESET PASSWORD */}
             {stage === 'reset' && (
               <motion.div key="reset" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                 <h2 className="text-xl font-black text-white italic uppercase text-center">New Password</h2>
@@ -237,14 +229,13 @@ export default function AuthScreen() {
         </div>
 
         <div className="bg-[#0B0E14]/50 p-4 text-center border-t border-slate-800/50">
-           <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">© 2026 Grade Guardian. Built for Students.</p>
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">© 2026 Grade Guardian. Built for Students.</p>
         </div>
       </motion.div>
     </div>
   );
 }
 
-// Reusable Components for cleaner code
 const InputGroup = ({ label, icon, ...props }) => (
   <div className="space-y-1.5">
     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">{label}</label>
