@@ -48,8 +48,13 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         
         config.setAllowCredentials(true);
-        // Explicitly allowing your Vite frontend
-        config.setAllowedOrigins(List.of("http://localhost:5173")); 
+        
+        // Explicitly allowing your Vite frontend (Local and Production)
+        config.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "https://gradeguardian.onrender.com"
+        )); 
+        
         config.setAllowedHeaders(List.of("*")); 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")); 
         
