@@ -15,7 +15,6 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userName, setUserName] = useState(localStorage.getItem('userName') || "Student");
   
-  // CONFIGURATION: Dynamic API URL for Production/Local
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,7 +30,6 @@ const Dashboard = () => {
     if (!userEmail) return;
 
     try {
-      // Updated to use API_BASE_URL
       const response = await fetch(`${API_BASE_URL}/api/courses/my-courses`, {
         method: 'POST',
         headers: {
@@ -55,12 +53,29 @@ const Dashboard = () => {
     let passedCount = 0;
 
     courses.forEach(course => {
-      const status = localStorage.getItem(`course_status_${course.id}`);
-      const isAttending = localStorage.getItem(`attention_${course.id}`) === 'true';
-      const hasPendingGoal = localStorage.getItem(`pendingGoal_${course.id}`);
+      const mid = parseFloat(course.midtermGrade) || 0;
+      const fin = parseFloat(course.finalGrade) || 0;
+      const mw = (course.midtermWeight || 50) / 100;
+      const fw = (course.finalWeight || 50) / 100;
 
-      if (status === 'PASSED') passedCount++;
-      if (isAttending || status === 'FAILED') attentionCount++; 
+      const isFinalized = course.finalGrade !== null && course.finalGrade !== undefined && course.finalGrade !== "";
+      
+      let avg = 0;
+      if (mid > 0 && fin > 0) {
+        avg = Math.floor(((mid * mw) + (fin * fw)) * 10) / 10;
+      } else if (mid > 0) {
+        avg = mid;
+      }
+
+      if (isFinalized) {
+        if (avg >= 3.0) {
+          passedCount++;
+        } else {
+          attentionCount++; 
+        }
+      }
+
+      const hasPendingGoal = localStorage.getItem(`pendingGoal_${course.id}`);
       if (hasPendingGoal) pendingCount++;
     });
 
@@ -89,22 +104,41 @@ const Dashboard = () => {
     course.courseCode.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const passedCourses = courses.filter(c => localStorage.getItem(`course_status_${c.id}`) === 'PASSED');
-  const totalPassedUnits = passedCourses.reduce((sum, c) => sum + parseInt(c.units || 0), 0);
-  
-  const totalGradePoints = passedCourses.reduce((sum, c) => {
-    const mw = (c.midtermWeight || 50) / 100;
-    const fw = (c.finalWeight || 50) / 100;
+  // --- FIX: Synced GWA Math with Academic Overview ---
+  let totalActiveUnits = 0;
+  let totalGradePoints = 0;
+  let totalPassedUnits = 0; // Keeping track of secured units for the description text
 
-    const midtermPart = (c.midtermGrade || 0) * mw;
-    const finalPart = (c.finalGrade || 0) * fw;
-    const courseAverage = midtermPart + finalPart;
+  courses.forEach(course => {
+    const mid = parseFloat(course.midtermGrade) || 0;
+    const fin = parseFloat(course.finalGrade) || 0;
+    const mw = (course.midtermWeight || 50) / 100;
+    const fw = (course.finalWeight || 50) / 100;
 
-    return sum + (courseAverage * parseInt(c.units || 0));
-  }, 0);
+    // Calculate running average exactly like Academic Overview
+    let avg = 0;
+    if (mid > 0 && fin > 0) {
+      avg = Math.floor(((mid * mw) + (fin * fw)) * 10) / 10;
+    } else if (mid > 0) {
+      avg = mid;
+    }
 
-  const averageGPA = totalPassedUnits > 0 ? (totalGradePoints / totalPassedUnits).toFixed(2) : "3.00";
+    if (avg > 0) {
+      totalGradePoints += (avg * parseInt(course.units || 0));
+      totalActiveUnits += parseInt(course.units || 0);
+    }
+
+    // Keep tracking fully finalized & passed courses for the text underneath
+    const isFinalized = course.finalGrade !== null && course.finalGrade !== undefined && course.finalGrade !== "";
+    if (isFinalized && avg >= 3.0) {
+      totalPassedUnits += parseInt(course.units || 0);
+    }
+  });
+
+  const averageGPA = totalActiveUnits > 0 ? (totalGradePoints / totalActiveUnits).toFixed(2) : "3.00";
+  const gpaLabel = totalActiveUnits > 0 ? "Current GWA" : "Min. Target";
   const totalUnits = courses.reduce((sum, course) => sum + parseInt(course.units || 0), 0);
+  // ----------------------------------------------------
 
   const handleAddCourse = async () => {
     await fetchCourses(); 
@@ -117,12 +151,9 @@ const Dashboard = () => {
     if (!window.confirm(`Permanently remove "${courseTitle}"?`)) return;
 
     try {
-      // Updated to use API_BASE_URL
       const response = await fetch(`${API_BASE_URL}/api/courses/${courseId}`, { method: 'DELETE' });
       if (response.ok) {
         setCourses(prev => prev.filter(c => c.id !== courseId));
-        localStorage.removeItem(`course_status_${courseId}`);
-        localStorage.removeItem(`attention_${courseId}`);
         localStorage.removeItem(`pendingGoal_${courseId}`);
       }
     } catch (error) { console.error("Delete Error:", error); }
@@ -191,8 +222,20 @@ const Dashboard = () => {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {filteredCourses.map((course, index) => {
-                        const status = localStorage.getItem(`course_status_${course.id}`);
-                        const displayProgress = status === 'PASSED' ? 100 : (course.progress || 0);
+                        
+                        const mid = parseFloat(course.midtermGrade) || 0;
+                        const fin = parseFloat(course.finalGrade) || 0;
+                        const isFinalized = course.finalGrade !== null && course.finalGrade !== undefined && course.finalGrade !== "";
+                        
+                        let cardStatus = 'PENDING';
+                        if (isFinalized) {
+                          const mw = (course.midtermWeight || 50) / 100;
+                          const fw = (course.finalWeight || 50) / 100;
+                          const avg = Math.floor(((mid * mw) + (fin * fw)) * 10) / 10;
+                          cardStatus = avg >= 3.0 ? 'PASSED' : 'FAILED';
+                        }
+
+                        const displayProgress = cardStatus === 'PASSED' ? 100 : (course.progress || 0);
 
                         return (
                           <motion.div
@@ -211,12 +254,12 @@ const Dashboard = () => {
 
                               <div className="bg-[#161B22] p-7 rounded-[2.5rem] border border-slate-800 group-hover:border-violet-500/50 transition-all h-full shadow-2xl relative overflow-hidden">
                                 <div className="flex gap-2 mb-4">
-                                  {status === 'PASSED' && (
+                                  {cardStatus === 'PASSED' && (
                                     <div className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
                                       <CheckCircle size={10} /> Passed
                                     </div>
                                   )}
-                                  {status === 'FAILED' && (
+                                  {cardStatus === 'FAILED' && (
                                     <div className="bg-red-600 text-white border border-red-500/20 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lg shadow-red-600/20">
                                       <X size={10} /> Failed Target
                                     </div>
@@ -273,13 +316,13 @@ const Dashboard = () => {
                     <div className="absolute inset-0 rounded-full border-2 border-violet-500/10 animate-pulse"></div>
                     <p className="text-4xl font-black text-white tracking-tighter italic">{averageGPA}</p>
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest leading-none mt-1">
-                      {totalPassedUnits > 0 ? "Current GWA" : "Min. Target"}
+                      {gpaLabel}
                     </p>
                   </div>
                   <h4 className="text-white font-black text-xl uppercase italic group-hover:text-violet-400 transition-colors">Goal Status</h4>
                   <p className="text-slate-500 text-sm mt-3 font-medium leading-relaxed">
-                    {totalPassedUnits > 0 
-                      ? `You've secured ${totalPassedUnits} units. Tap to view your honors eligibility.`
+                    {totalActiveUnits > 0 
+                      ? `You've secured ${totalPassedUnits} out of ${totalUnits} units. Tap to view your honors eligibility.`
                       : "Finish your assessments to calculate your official GPA."}
                   </p>
                   <div className="mt-6 flex items-center gap-2 text-violet-500 text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">

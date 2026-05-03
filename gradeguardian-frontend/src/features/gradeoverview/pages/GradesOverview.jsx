@@ -2,23 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BarChart3, TrendingUp, AlertCircle, 
-  CheckCircle2, ArrowUpRight, GraduationCap 
+  CheckCircle2, ArrowUpRight, GraduationCap, XCircle
 } from 'lucide-react';
 
 const GradesOverview = () => {
   const [courses, setCourses] = useState([]);
   const userEmail = localStorage.getItem('userEmail');
 
-  // CONFIGURATION: Dynamic API URL for Production/Local
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-  // --- SECURE POST FETCH LOGIC ---
   useEffect(() => {
     const fetchActiveGrades = async () => {
       if (!userEmail) return;
 
       try {
-        // Updated to use API_BASE_URL
         const res = await fetch(`${API_BASE_URL}/api/courses/my-courses`, {
           method: 'POST',
           headers: {
@@ -43,7 +40,6 @@ const GradesOverview = () => {
     fetchActiveGrades();
   }, [userEmail, API_BASE_URL]);
 
-  // Calculate "Live GWA" for active semester
   const calculateLiveGWA = () => {
     let totalPoints = 0;
     let totalUnits = 0;
@@ -52,10 +48,16 @@ const GradesOverview = () => {
       const mid = parseFloat(c.midtermGrade) || 0;
       const fin = parseFloat(c.finalGrade) || 0;
       
-      // Dynamic weighting calculation
       const mw = (c.midtermWeight || 50) / 100;
       const fw = (c.finalWeight || 50) / 100;
-      const avg = (mid * mw) + (fin * fw);
+      
+      // Calculate average and truncate to 1 decimal place to match CourseDetails
+      let avg = 0;
+      if (mid > 0 && fin > 0) {
+        avg = Math.floor(((mid * mw) + (fin * fw)) * 10) / 10;
+      } else if (mid > 0) {
+        avg = mid;
+      }
       
       if (avg > 0) {
         totalPoints += (avg * (c.units || 0));
@@ -70,13 +72,11 @@ const GradesOverview = () => {
     <div className="min-h-screen bg-[#0B0E14] text-slate-100 p-8 font-sans">
       <div className="max-w-[1400px] mx-auto space-y-10 w-full">
         
-        {/* Header */}
         <header>
           <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Academic Overview</h2>
           <p className="text-slate-500 font-medium">Real-time performance tracking for the current term.</p>
         </header>
 
-        {/* Live GWA Hero Card */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -106,7 +106,6 @@ const GradesOverview = () => {
           </div>
         </div>
 
-        {/* Detailed List */}
         <div className="space-y-6">
           <h3 className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
             Current Subject Standings <ArrowUpRight size={20} className="text-violet-500" />
@@ -119,10 +118,35 @@ const GradesOverview = () => {
               
               const mw = (course.midtermWeight || 50) / 100;
               const fw = (course.finalWeight || 50) / 100;
-              const avg = (mid * mw) + (fin * fw);
+              
+              // --- FIX: Truncate math to match CourseDetails ---
+              let avg = 0;
+              if (mid > 0 && fin > 0) {
+                avg = Math.floor(((mid * mw) + (fin * fw)) * 10) / 10;
+              } else if (mid > 0) {
+                avg = mid;
+              }
 
-              const savedStatus = localStorage.getItem(`course_status_${course.id}`);
-              const isFinalized = savedStatus === 'PASSED';
+              // --- NEW ROBUST FIX: Calculate Status Directly from Database Data ---
+              // Determine if the course is fully graded (has a final grade from the DB)
+              const isFinalized = course.finalGrade !== null && course.finalGrade !== undefined && course.finalGrade !== "";
+              
+              let statusText = 'Pending';
+              let statusColor = 'text-amber-500';
+              let StatusIcon = AlertCircle;
+
+              // If the course has been finalized, mathematically determine the status on the fly
+              if (isFinalized) {
+                if (avg >= 3.0) {
+                  statusText = 'Secure';
+                  statusColor = 'text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]';
+                  StatusIcon = CheckCircle2;
+                } else {
+                  statusText = 'Failed';
+                  statusColor = 'text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]';
+                  StatusIcon = XCircle;
+                }
+              }
 
               return (
                 <motion.div 
@@ -139,22 +163,18 @@ const GradesOverview = () => {
                       </h4>
                       <p className="text-slate-500 text-[10px] font-black tracking-widest uppercase">{course.courseCode}</p>
                     </div>
-                    {isFinalized ? (
-                      <CheckCircle2 size={24} className="text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
-                    ) : (
-                      <AlertCircle size={24} className="text-amber-500" />
-                    )}
+                    <StatusIcon size={24} className={statusColor.split(' ')[0]} />
                   </div>
 
                   <div className="flex justify-between items-end border-t border-slate-800/50 pt-6">
                     <div>
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Running GPA</p>
-                      <p className="text-3xl font-black text-white italic tracking-tighter">{avg > 0 ? avg.toFixed(2) : "N/A"}</p>
+                      <p className="text-3xl font-black text-white italic tracking-tighter">{avg > 0 ? avg.toFixed(1) : "N/A"}</p>
                     </div>
                     <div className="text-right">
                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Status</p>
-                       <span className={`text-[10px] font-black uppercase tracking-widest ${isFinalized ? 'text-emerald-500' : 'text-amber-500'}`}>
-                         {isFinalized ? 'Secure' : 'Pending'}
+                       <span className={`text-[10px] font-black uppercase tracking-widest ${statusColor.split(' ')[0]}`}>
+                         {statusText}
                        </span>
                     </div>
                   </div>

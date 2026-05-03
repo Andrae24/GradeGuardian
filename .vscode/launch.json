@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "GradeguardianBackendApplication",
+            "request": "launch",
+            "mainClass": "com.example.gradeguardian_backend.GradeguardianBackendApplication",
+            "projectName": "gradeguardian-backend",
+            "env": {
+                "DB_URL": "jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require",
+                "DB_USER": "postgres.oepbvkaxafumxyebnktg",
+                "DB_PASSWORD": "f7gL$K7o=l73",
+                "MAIL_PASSWORD": "tbgkbwiwbolqriai"
+            }
+        }
+    ]
+}
