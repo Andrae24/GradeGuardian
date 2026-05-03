@@ -10,20 +10,23 @@ const SemesterDetails = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // CONFIGURATION: Dynamic API URL for Production/Local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   useEffect(() => {
     const fetchFullReport = async () => {
       const userEmail = localStorage.getItem('userEmail');
       if (!userEmail) return;
 
       try {
-        // 1. Fetch the Specific Semester Card
-        const semRes = await fetch(`http://localhost:8080/api/semesters/${id}`);
+        // 1. Fetch the Specific Semester Card using API_BASE_URL
+        const semRes = await fetch(`${API_BASE_URL}/api/semesters/${id}`);
         if (!semRes.ok) throw new Error("Semester not found");
         const semData = await semRes.json();
         setSemester(semData);
 
-        // 2. Fetch all user courses via the SECURE POST endpoint
-        const coursesRes = await fetch(`http://localhost:8080/api/courses/my-courses`, {
+        // 2. Fetch all user courses via the SECURE POST endpoint using API_BASE_URL
+        const coursesRes = await fetch(`${API_BASE_URL}/api/courses/my-courses`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -45,7 +48,7 @@ const SemesterDetails = () => {
       }
     };
     fetchFullReport();
-  }, [id]);
+  }, [id, API_BASE_URL]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#0B0E14] flex items-center justify-center">

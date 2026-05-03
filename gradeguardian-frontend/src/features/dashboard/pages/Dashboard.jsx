@@ -15,7 +15,9 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userName, setUserName] = useState(localStorage.getItem('userName') || "Student");
   
-  // --- STEP 1: Add the Search State ---
+  // CONFIGURATION: Dynamic API URL for Production/Local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   const [searchTerm, setSearchTerm] = useState("");
 
   const [metrics, setMetrics] = useState({ 
@@ -29,7 +31,8 @@ const Dashboard = () => {
     if (!userEmail) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/courses/my-courses`, {
+      // Updated to use API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/courses/my-courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -81,8 +84,6 @@ const Dashboard = () => {
     return () => window.removeEventListener('focus', updateMetrics);
   }, [courses]);
 
-  // --- STEP 2: Filter Logic ---
-  // We create this derived array so the original 'courses' remains untouched
   const filteredCourses = courses.filter(course => 
     course.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
     course.courseCode.toLowerCase().includes(searchTerm.toLowerCase())
@@ -116,7 +117,8 @@ const Dashboard = () => {
     if (!window.confirm(`Permanently remove "${courseTitle}"?`)) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/courses/${courseId}`, { method: 'DELETE' });
+      // Updated to use API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/courses/${courseId}`, { method: 'DELETE' });
       if (response.ok) {
         setCourses(prev => prev.filter(c => c.id !== courseId));
         localStorage.removeItem(`course_status_${courseId}`);
@@ -142,7 +144,6 @@ const Dashboard = () => {
             <div className="flex gap-4">
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-violet-500 transition-colors" />
-                {/* --- STEP 3: Connect Input to State --- */}
                 <input 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -171,7 +172,6 @@ const Dashboard = () => {
               </div>
 
               <AnimatePresence mode='wait'>
-                {/* --- STEP 4: Use filteredCourses instead of courses --- */}
                 {filteredCourses.length === 0 ? (
                   <motion.div 
                     key="empty"
@@ -289,9 +289,7 @@ const Dashboard = () => {
               </motion.div>
             </div>
           </div>
-        
         </div>
-
       </main>
 
       <AddCourseModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAdd={handleAddCourse} />

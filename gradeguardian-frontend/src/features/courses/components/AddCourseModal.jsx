@@ -7,6 +7,9 @@ export const AddCourseModal = ({ isOpen, onClose, onAdd }) => {
   const [units, setUnits] = useState('3');
   const [selectedColor, setSelectedColor] = useState(0);
   
+  // CONFIGURATION: Dynamic API URL for Production/Local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   // NEW: State for Dynamic Weighting Scheme
   const [weighting, setWeighting] = useState('50-50');
   const [error, setError] = useState('');
@@ -45,7 +48,8 @@ export const AddCourseModal = ({ isOpen, onClose, onAdd }) => {
     };
 
     try {
-      const response = await fetch('http://localhost:8080/api/courses/add', {
+      // Updated to use API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/courses/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(coursePayload),
@@ -146,7 +150,6 @@ export const AddCourseModal = ({ isOpen, onClose, onAdd }) => {
               </div>
             </div>
 
-            {/* NEW: Grading Scheme Selection */}
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-300" htmlFor="weighting">Grading Scheme</label>
               <select 

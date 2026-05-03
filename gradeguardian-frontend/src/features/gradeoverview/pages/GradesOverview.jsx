@@ -9,13 +9,17 @@ const GradesOverview = () => {
   const [courses, setCourses] = useState([]);
   const userEmail = localStorage.getItem('userEmail');
 
+  // CONFIGURATION: Dynamic API URL for Production/Local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   // --- SECURE POST FETCH LOGIC ---
   useEffect(() => {
     const fetchActiveGrades = async () => {
       if (!userEmail) return;
 
       try {
-        const res = await fetch(`http://localhost:8080/api/courses/my-courses`, {
+        // Updated to use API_BASE_URL
+        const res = await fetch(`${API_BASE_URL}/api/courses/my-courses`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -37,7 +41,7 @@ const GradesOverview = () => {
     };
     
     fetchActiveGrades();
-  }, [userEmail]);
+  }, [userEmail, API_BASE_URL]);
 
   // Calculate "Live GWA" for active semester
   const calculateLiveGWA = () => {
@@ -117,7 +121,6 @@ const GradesOverview = () => {
               const fw = (course.finalWeight || 50) / 100;
               const avg = (mid * mw) + (fin * fw);
 
-              // SYNC WITH DASHBOARD: Check if course is marked as PASSED in localStorage
               const savedStatus = localStorage.getItem(`course_status_${course.id}`);
               const isFinalized = savedStatus === 'PASSED';
 

@@ -16,6 +16,9 @@ const CourseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
+  // --- CONFIGURATION: Dynamic API URL for Production/Local ---
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   const [assessments, setAssessments] = useState([]);
   const [courseInfo, setCourseInfo] = useState({
     title: "Loading...",
@@ -49,7 +52,7 @@ const CourseDetails = () => {
 
   const fetchData = async () => {
     try {
-      const courseRes = await fetch(`http://localhost:8080/api/courses/${id}`);
+      const courseRes = await fetch(`${API_BASE_URL}/api/courses/${id}`);
       if (courseRes.ok) {
         const data = await courseRes.json();
         setCourseInfo({
@@ -63,7 +66,7 @@ const CourseDetails = () => {
         });
       }
 
-      const assessmentsRes = await fetch(`http://localhost:8080/api/assessments/course/${id}`);
+      const assessmentsRes = await fetch(`${API_BASE_URL}/api/assessments/course/${id}`);
       if (assessmentsRes.ok) {
         const assessmentsData = await assessmentsRes.json();
         setAssessments(assessmentsData);
@@ -75,7 +78,6 @@ const CourseDetails = () => {
 
   const currentViewAssessments = assessments.filter(item => item.period === activeView);
 
-  // --- CASE-INSENSITIVE NAME FILTERS ---
   const rawCSContribution = currentViewAssessments
     .filter(a => a.name.toUpperCase() === 'CLASS STANDING 1' || a.name.toUpperCase() === 'CLASS STANDING 2')
     .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
@@ -109,7 +111,6 @@ const CourseDetails = () => {
   const displayContrib = syncedData ? syncedData.contrib : contribution;
   const displayWeight = syncedData ? syncedData.weight : totalWeightUsed;
 
-  // --- UPDATED GPA LOGIC: Reset to 0.0 if table is empty ---
   const displayGPA = syncedData 
     ? (displayContrib > 0 ? transmuteToGPA(displayContrib) : "1.0")
     : (contribution > 0 
@@ -145,7 +146,7 @@ const CourseDetails = () => {
 
     try {
       const payload = { ...examData, course: { id: parseInt(id) } };
-      const response = await fetch(`http://localhost:8080/api/assessments/course/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/assessments/course/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -154,9 +155,7 @@ const CourseDetails = () => {
       if (response.ok) {
         const updatedRaw = contribution + ((examData.score / examData.total) * examData.weight);
         const actualGpa = transmuteToGPA(updatedRaw);
-
         resolveGoal(false, actualGpa);
-        
         fetchData();
         setIsResultModalOpen(false);
       }
@@ -181,7 +180,7 @@ const CourseDetails = () => {
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#10B981', '#FFFFFF'] });
 
       try {
-        await fetch(`http://localhost:8080/api/courses/${id}/finalize`, {
+        await fetch(`${API_BASE_URL}/api/courses/${id}/finalize`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ midtermGrade: gpa, progress: 50 })
@@ -220,7 +219,7 @@ const CourseDetails = () => {
           course: { id: parseInt(id) }
         };
         
-        await fetch(`http://localhost:8080/api/assessments/course/${id}`, {
+        await fetch(`${API_BASE_URL}/api/assessments/course/${id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(assessmentPayload)
@@ -239,7 +238,7 @@ const CourseDetails = () => {
         isGwaEligible: isFinals
       };
 
-      const response = await fetch(`http://localhost:8080/api/courses/${id}/finalize`, {
+      const response = await fetch(`${API_BASE_URL}/api/courses/${id}/finalize`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -279,7 +278,7 @@ const CourseDetails = () => {
     }
     try {
       const payload = { ...formData, period: selectedPeriod, course: { id: parseInt(id) } };
-      const response = await fetch(`http://localhost:8080/api/assessments/course/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/assessments/course/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -291,7 +290,7 @@ const CourseDetails = () => {
   const handleDeleteAssessment = async (assessmentId, assessmentName) => {
     if (window.confirm(`Remove "${assessmentName}"?`)) {
       try {
-        const response = await fetch(`http://localhost:8080/api/assessments/${assessmentId}`, { method: 'DELETE' });
+        const response = await fetch(`${API_BASE_URL}/api/assessments/${assessmentId}`, { method: 'DELETE' });
         if (response.ok) fetchData();
       } catch (error) { console.error(error); }
     }

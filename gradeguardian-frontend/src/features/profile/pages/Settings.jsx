@@ -9,6 +9,9 @@ import {
 const Settings = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+
+  // CONFIGURATION: Dynamic API URL for Production/Local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   
   // --- Dynamic Stats State ---
   const [stats, setStats] = useState({ gwa: "0.000", units: 0, honorTitle: "Technologian" });
@@ -42,7 +45,8 @@ const Settings = () => {
 
     const fetchStats = async () => {
       try {
-        const res = await fetch(`http://localhost:8080/api/courses/my-courses`, {
+        // Updated to use API_BASE_URL
+        const res = await fetch(`${API_BASE_URL}/api/courses/my-courses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: userEmail })
@@ -68,7 +72,6 @@ const Settings = () => {
 
           const calculatedGWA = totalUnits > 0 ? (totalGradePoints / totalUnits) : 0;
           
-          // CIT-U Official Honors Thresholds
           let title = "Junior Student";
           if (calculatedGWA >= 4.800) title = "Summa Cum Laude Candidate";
           else if (calculatedGWA >= 4.600) title = "Magna Cum Laude Candidate";
@@ -86,7 +89,7 @@ const Settings = () => {
       }
     };
     fetchStats();
-  }, [userEmail, navigate]);
+  }, [userEmail, navigate, API_BASE_URL]);
 
   // --- HANDLERS ---
   const handlePasswordChange = async (e) => {
@@ -96,7 +99,8 @@ const Settings = () => {
       return;
     }
     try {
-      const response = await fetch('http://localhost:8080/api/auth/change-password', {
+      // Updated to use API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -124,7 +128,8 @@ const Settings = () => {
     formData.append('email', userEmail);
     setIsUploading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/auth/upload-photo', {
+      // Updated to use API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/auth/upload-photo`, {
         method: 'POST', body: formData, 
       });
       const data = await response.json();
@@ -140,7 +145,8 @@ const Settings = () => {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:8080/api/auth/update-profile', {
+      // Updated to use API_BASE_URL
+      const response = await fetch(`${API_BASE_URL}/api/auth/update-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail, newName: editName }),
@@ -178,7 +184,6 @@ const Settings = () => {
         </header>
 
         <div className="max-w-[1200px] w-full mx-auto p-8 space-y-10 pb-20">
-          {/* Profile Section */}
           <section className="flex flex-col md:flex-row items-center gap-8 pb-10 border-b border-slate-800">
             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
               <div className="w-28 h-28 rounded-full bg-slate-700 border-4 border-violet-600/20 shadow-2xl overflow-hidden relative">
@@ -201,7 +206,6 @@ const Settings = () => {
             </button>
           </section>
 
-          {/* DYNAMIC STATS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatBox title="Current GWA" value={stats.gwa} icon={<GraduationCap className="text-emerald-500" />} />
             <StatBox title="Units Earned" value={stats.units} sub="/ 120" icon={<BarChart3 className="text-blue-500" />} />
@@ -240,7 +244,6 @@ const Settings = () => {
         </div>
       </main>
 
-      {/* --- MODALS --- */}
       {showEditProfileModal && (
         <Modal title="Edit Profile" onClose={() => setShowEditProfileModal(false)}>
            <form onSubmit={handleUpdateProfile} className="space-y-4 text-left">
@@ -323,7 +326,8 @@ const Settings = () => {
   );
 };
 
-// --- HELPERS ---
+// ... (StatBox, SecurityBtn, FAQItem, PrivacySection, Modal, PassInput helpers remain unchanged)
+
 const StatBox = ({ title, value, sub, icon, highlight }) => (
   <div className="bg-[#161B22] p-8 rounded-[2.5rem] border border-slate-800 shadow-xl relative overflow-hidden group">
     <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">{icon}</div>

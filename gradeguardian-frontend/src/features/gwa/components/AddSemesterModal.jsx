@@ -7,6 +7,9 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
   const [eligibleCourses, setEligibleCourses] = useState([]);
   const [selectedCourseIds, setSelectedCourseIds] = useState([]);
 
+  // CONFIGURATION: Dynamic API URL for Production/Local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   // --- UPDATED: SECURE POST FETCH LOGIC ---
   useEffect(() => {
     if (isOpen) {
@@ -15,8 +18,8 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
         if (!userEmail) return;
 
         try {
-          // Changed to POST and removed email from URL to fix 404/403 errors
-          const res = await fetch(`http://localhost:8080/api/courses/eligible`, {
+          // Updated to use API_BASE_URL
+          const res = await fetch(`${API_BASE_URL}/api/courses/eligible`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -37,7 +40,7 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
       };
       fetchEligibleCourses();
     }
-  }, [isOpen]);
+  }, [isOpen, API_BASE_URL]);
 
   const toggleCourse = (id) => {
     setSelectedCourseIds(prev => 
@@ -95,7 +98,6 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
             
             <div className="grid grid-cols-1 gap-3">
               {eligibleCourses.length > 0 ? eligibleCourses.map(course => {
-                // Calculation for display (Midterm + Finals) / 2
                 const mid = parseFloat(course.midtermGrade || 0);
                 const fin = parseFloat(course.finalGrade || 0);
                 const avgGrade = (mid + fin) / 2;

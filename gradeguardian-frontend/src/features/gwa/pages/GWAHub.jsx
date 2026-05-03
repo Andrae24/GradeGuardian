@@ -10,13 +10,16 @@ const GWAHub = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const userEmail = localStorage.getItem('userEmail');
 
+  // CONFIGURATION: Dynamic API URL for Production/Local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
   // --- UPDATED: SECURE POST FETCH LOGIC ---
   const fetchSemesters = async () => {
     if (!userEmail) return;
 
     try {
-      // Changed to POST to bypass URL firewall issues, matching Dashboard strategy
-      const res = await fetch(`http://localhost:8080/api/semesters/my-semesters`, {
+      // Updated to use API_BASE_URL logic
+      const res = await fetch(`${API_BASE_URL}/api/semesters/my-semesters`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -37,7 +40,7 @@ const GWAHub = () => {
 
   useEffect(() => {
     fetchSemesters();
-  }, [userEmail]);
+  }, [userEmail, API_BASE_URL]);
 
   const handleSaveSemester = async (selectedData) => {
     const { yearLevel, term, selectedCourses } = selectedData;
@@ -48,12 +51,10 @@ const GWAHub = () => {
     let totalUnits = 0;
 
     selectedCourses.forEach(course => {
-      // Logic adjusted for your 1.0 - 5.0 scale
       const midterm = parseFloat(course.midtermGrade) || 0;
       const final = parseFloat(course.finalGrade) || 0;
       const units = parseInt(course.units) || 3;
       
-      // Dynamic weight aware calculation
       const mw = (course.midtermWeight || 50) / 100;
       const fw = (course.finalWeight || 50) / 100;
       const courseAverage = (midterm * mw) + (final * fw);
@@ -74,7 +75,8 @@ const GWAHub = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:8080/api/semesters', {
+      // Updated to use API_BASE_URL logic
+      const response = await fetch(`${API_BASE_URL}/api/semesters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -101,7 +103,8 @@ const GWAHub = () => {
   const handleDeleteSemester = async (id) => {
     if (window.confirm("Remove this semester record?")) {
       try {
-        const res = await fetch(`http://localhost:8080/api/semesters/${id}`, {
+        // Updated to use API_BASE_URL logic
+        const res = await fetch(`${API_BASE_URL}/api/semesters/${id}`, {
           method: 'DELETE'
         });
         if (res.ok) fetchSemesters();
@@ -113,11 +116,8 @@ const GWAHub = () => {
 
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-100 p-8 font-sans">
-      
-      {/* --- LAYOUT FIX: Centered Max-Width Container --- */}
       <div className="max-w-[1400px] mx-auto space-y-10 w-full">
         
-        {/* Header */}
         <header className="flex justify-between items-end">
           <div className="space-y-1">
             <h2 className="text-4xl font-black text-white tracking-tight uppercase italic drop-shadow-sm">GWA Hub</h2>
@@ -131,7 +131,6 @@ const GWAHub = () => {
           </button>
         </header>
 
-        {/* Content Area */}
         <AnimatePresence mode="wait">
           {(!semesters || semesters.length === 0) ? (
             <motion.div 
@@ -171,7 +170,6 @@ const GWAHub = () => {
           )}
         </AnimatePresence>
       </div>
-      {/* --- END LAYOUT FIX --- */}
       
       <AddSemesterModal 
         isOpen={isModalOpen} 
