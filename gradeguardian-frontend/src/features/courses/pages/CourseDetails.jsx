@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Trash2, Plus, GraduationCap, CheckCircle, GitBranch, PieChart, Target, X, Lock, Unlock, AlertCircle, FastForward, Info
+  Trash2, Plus, GraduationCap, CheckCircle, GitBranch, PieChart, Target, X, Lock, Unlock, AlertCircle, FastForward, Info, GitMerge, ListPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -60,7 +60,6 @@ const CourseDetails = () => {
     } catch (error) { console.error("Error fetching data:", error); }
   };
 
-  // NEW: Filters for the current period AND sorts by ID (Oldest top, Newest bottom)
   const currentViewAssessments = assessments
     .filter(item => item.period === activeView)
     .sort((a, b) => a.id - b.id);
@@ -73,24 +72,20 @@ const CourseDetails = () => {
   
   const isCS = (name) => name && name.trim().toUpperCase() === 'CLASS STANDING';
 
-  // Secretly calculate the sum of all subcomponents (quizzes, recitations, etc.)
   const pendingCSScore = currentViewAssessments
     .filter(a => !isMajorExam(a.name) && !isCS(a.name))
     .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
 
-  // Only calculates the row explicitly named "Class Standing"
   const rawCSContribution = currentViewAssessments
     .filter(a => isCS(a.name))
     .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
 
-  // Only calculates Major Exams
   const rawExamContribution = currentViewAssessments
     .filter(a => isMajorExam(a.name))
     .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
 
   const contribution = rawCSContribution + rawExamContribution;
   
-  // Only counts the weight of the finalized Class Standing and Major Exams
   const displayWeight = currentViewAssessments
     .filter(a => isCS(a.name) || isMajorExam(a.name))
     .reduce((acc, item) => acc + (item.weight || 0), 0);
@@ -243,7 +238,6 @@ const CourseDetails = () => {
     <div className="bg-[#0B0E14] min-h-screen text-slate-100 font-sans pb-20">
       <div className="p-8 max-w-6xl mx-auto space-y-10">
         
-        {/* HEADER SECTION */}
         <header className="flex flex-wrap items-end justify-between gap-6">
           <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
             <h2 className="text-4xl font-black text-white tracking-tight italic uppercase">{courseInfo.title}</h2>
@@ -251,7 +245,6 @@ const CourseDetails = () => {
           </motion.div>
           
           <div className="flex flex-wrap gap-3">
-            {/* QUICK UNLOCK: Validated Input */}
             {!isFinalsUnlocked && (
               <button 
                 onClick={() => {
@@ -272,7 +265,6 @@ const CourseDetails = () => {
           </div>
         </header>
 
-        {/* ACTIVE TARGET BANNER */}
         <AnimatePresence>
           {pendingGoal && (
             <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="bg-violet-600/10 border border-violet-500/30 p-5 rounded-3xl flex flex-wrap justify-between items-center gap-4 shadow-2xl">
@@ -292,7 +284,6 @@ const CourseDetails = () => {
           )}
         </AnimatePresence>
 
-        {/* PERIOD SWITCHER */}
         <div className="flex items-center justify-center">
           <div className="flex bg-[#161B22] p-1.5 rounded-[2rem] border border-slate-800 shadow-2xl">
             {['MIDTERM', 'FINALS'].map((p) => {
@@ -314,7 +305,6 @@ const CourseDetails = () => {
           </div>
         </div>
 
-        {/* METRICS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard index={0} title={activeView === 'FINALS' ? "Overall GPA" : "GPA"} value={displayGPA} icon={<GraduationCap size={24}/>} color={parseFloat(displayGPA) < 3.0 ? "text-red-500" : "text-violet-400"} />
           <MetricCard index={1} title="Status" value={currentStatus} icon={currentStatus === "Passing" ? <CheckCircle size={24}/> : <X size={24}/>} color={currentStatus === "Passing" ? "text-emerald-500" : "text-red-500"} />
@@ -322,20 +312,48 @@ const CourseDetails = () => {
           <MetricCard index={3} title="Weight Tracked" value={`${displayWeight}%`} icon={<PieChart size={24}/>} color="text-emerald-400" />
         </div>
 
-        {/* GRADING PROCEDURE NOTE (UPDATED FOR BATCHING) */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-500/10 border border-blue-500/30 p-5 rounded-2xl flex items-start gap-4 shadow-lg">
-          <Info className="text-blue-400 shrink-0 mt-0.5" size={24} />
-          <div>
-            <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-2">How to track Subcomponents & Class Standing</p>
-            <ul className="text-sm text-slate-300 leading-relaxed space-y-1 list-disc list-inside">
-              <li>Click Add Assessment and use the <strong>"Group Multiple Items"</strong> toggle to easily batch multiple quizzes into a single entry.</li>
-              <li>When ready to finalize, add a new assessment named exactly <strong>"Class Standing"</strong>.</li>
-              <li>The system will instantly auto-fill your calculated total score! Just enter the weight (e.g., 40%) to apply it to your GPA.</li>
-            </ul>
+        {/* RE-DESIGNED USER FRIENDLY QUICK GUIDE */}
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="bg-blue-500/10 border border-blue-500/20 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-start gap-6 shadow-xl"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0 border border-blue-500/30">
+            <Info size={28} />
+          </div>
+          <div className="flex-1 space-y-4">
+            <div>
+              <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Grade Tracking Pro-Tips</h3>
+              <p className="text-xs text-blue-400 font-bold uppercase tracking-widest">Master your syllabus with these two modes:</p>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-[#0B0E14]/60 p-4 rounded-2xl border border-slate-800/50 group hover:border-violet-500/50 transition-all">
+                <div className="flex items-center gap-3 mb-2">
+                  <ListPlus size={18} className="text-violet-400" />
+                  <p className="text-xs font-black text-white uppercase italic">Batch Grouping</p>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">Perfect for <strong>Quizzes, Seatworks, Activities, and etc</strong>. Use the toggle to add multiple scores; the app sums them up into one entry automatically.</p>
+              </div>
+              
+              <div className="bg-[#0B0E14]/60 p-4 rounded-2xl border border-slate-800/50 group hover:border-blue-500/50 transition-all">
+                <div className="flex items-center gap-3 mb-2">
+                  <GitMerge size={18} className="text-blue-400" />
+                  <p className="text-xs font-black text-white uppercase italic">Syllabus Split</p>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">Perfect for <strong>Major Exams</strong>. Enter the category weight (e.g., 60%) and split it into Pre-final/Final slots easily.</p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-[10px] text-slate-400 font-medium">
+                <strong>Magic Sync:</strong> To see your final result, add an assessment named exactly <span className="text-emerald-400 font-black">"Class Standing"</span> to auto-fill your grade!
+              </p>
+            </div>
           </div>
         </motion.div>
 
-        {/* ASSESSMENT TABLE */}
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-[#161B22] rounded-[2.5rem] border border-slate-800 shadow-2xl overflow-hidden">
           <div className="px-8 py-6 border-b border-slate-800 bg-white/[0.02] flex justify-between items-center">
             <h4 className="text-lg font-black text-white uppercase tracking-tighter italic">{activeView} Assessments</h4>
@@ -380,7 +398,6 @@ const CourseDetails = () => {
           </div>
         </motion.div>
 
-        {/* PREDICTION ENGINE */}
         <div className="mt-12">
           <GradeProjector
             initialCS1={rawCSContribution.toFixed(1)}
@@ -392,7 +409,6 @@ const CourseDetails = () => {
           />
         </div>
 
-        {/* MODALS */}
         <RecordResultModal 
           isOpen={isResultModalOpen} 
           onClose={() => setIsResultModalOpen(false)} 
@@ -402,7 +418,6 @@ const CourseDetails = () => {
         />
         <PeriodSelectionModal isOpen={isPeriodModalOpen} onClose={() => setIsPeriodModalOpen(false)} onSelect={handlePeriodSelection} isMidtermComplete={isFinalsUnlocked} />
         
-        {/* Pass the pending calculation to the form */}
         <AddAssessmentForm 
           isOpen={isEntryModalOpen} 
           periodName={activeView} 
