@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { Outlet, useNavigate } from 'react-router-dom';
 import { 
   ShieldCheck, LayoutDashboard, GraduationCap, 
   Settings as SettingsIcon, LogOut,
@@ -8,19 +8,28 @@ import {
 import { NavItem } from './NavItem';
 
 export const Layout = () => {
-  const navigate = useNavigate(); // Initialize the navigate hook
+  const navigate = useNavigate();
 
   const handleLogOut = () => {
-    // 1. Clear all local storage data (Grades, Targets, Goals)
-    localStorage.clear();
+    // --- SELECTIVE CLEAR LOGIC ---
+    // Instead of wiping everything, we loop through and only delete non-grade data.
+    Object.keys(localStorage).forEach(key => {
+      // We want to KEEP these:
+      const isPendingGoal = key.startsWith('pendingGoal_');
+      const isCourseStatus = key.startsWith('course_status_');
+      
+      // If it's NOT one of those, it's safe to remove (like email, name, token)
+      if (!isPendingGoal && !isCourseStatus) {
+        localStorage.removeItem(key);
+      }
+    });
     
-    // 2. Redirect the user back to the login page (or landing page)
+    // Redirect the user
     navigate('/login'); 
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0B0E14] text-slate-100 font-sans relative">
-      
       <aside className="w-64 bg-[#161B22] border-r border-slate-800 flex flex-col justify-between py-6 px-4 z-10 shrink-0">
         <div className="space-y-8">
           <div className="flex items-center gap-3 px-2">
@@ -42,7 +51,6 @@ export const Layout = () => {
         </div>
 
         <div className="p-4 border-t border-slate-800 mt-auto">
-          {/* UPDATED: Added onClick handler */}
           <button 
             onClick={handleLogOut}
             className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
