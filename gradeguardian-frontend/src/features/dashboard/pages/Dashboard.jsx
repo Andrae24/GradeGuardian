@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, Bell, CheckCircle, BarChart3, 
-  Clock, AlertTriangle, Plus, AlertCircle, Trash2, LayoutGrid, ArrowRight, X
+  Clock, AlertTriangle, Plus, AlertCircle, Trash2, LayoutGrid, ArrowRight, X, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,9 +32,7 @@ const Dashboard = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/courses/my-courses`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail }) 
       });
       
@@ -68,32 +66,19 @@ const Dashboard = () => {
       }
 
       if (isFinalized) {
-        if (avg >= 3.0) {
-          passedCount++;
-        } else {
-          attentionCount++; 
-        }
+        if (avg >= 3.0) passedCount++;
+        else attentionCount++; 
       }
 
       const hasPendingGoal = localStorage.getItem(`pendingGoal_${course.id}`);
       if (hasPendingGoal) pendingCount++;
     });
 
-    setMetrics({ 
-      pending: pendingCount, 
-      attention: attentionCount, 
-      passed: passedCount 
-    });
+    setMetrics({ pending: pendingCount, attention: attentionCount, passed: passedCount });
   };
 
-  useEffect(() => {
-    fetchCourses();
-  }, []);
-
-  useEffect(() => {
-    updateMetrics();
-  }, [courses]);
-
+  useEffect(() => { fetchCourses(); }, []);
+  useEffect(() => { updateMetrics(); }, [courses]);
   useEffect(() => {
     window.addEventListener('focus', updateMetrics);
     return () => window.removeEventListener('focus', updateMetrics);
@@ -104,10 +89,9 @@ const Dashboard = () => {
     course.courseCode.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // --- FIX: Synced GWA Math with Academic Overview ---
   let totalActiveUnits = 0;
   let totalGradePoints = 0;
-  let totalPassedUnits = 0; // Keeping track of secured units for the description text
+  let totalPassedUnits = 0;
 
   courses.forEach(course => {
     const mid = parseFloat(course.midtermGrade) || 0;
@@ -115,30 +99,22 @@ const Dashboard = () => {
     const mw = (course.midtermWeight || 50) / 100;
     const fw = (course.finalWeight || 50) / 100;
 
-    // Calculate running average exactly like Academic Overview
     let avg = 0;
-    if (mid > 0 && fin > 0) {
-      avg = Math.floor(((mid * mw) + (fin * fw)) * 10) / 10;
-    } else if (mid > 0) {
-      avg = mid;
-    }
+    if (mid > 0 && fin > 0) avg = Math.floor(((mid * mw) + (fin * fw)) * 10) / 10;
+    else if (mid > 0) avg = mid;
 
     if (avg > 0) {
       totalGradePoints += (avg * parseInt(course.units || 0));
       totalActiveUnits += parseInt(course.units || 0);
     }
 
-    // Keep tracking fully finalized & passed courses for the text underneath
     const isFinalized = course.finalGrade !== null && course.finalGrade !== undefined && course.finalGrade !== "";
-    if (isFinalized && avg >= 3.0) {
-      totalPassedUnits += parseInt(course.units || 0);
-    }
+    if (isFinalized && avg >= 3.0) totalPassedUnits += parseInt(course.units || 0);
   });
 
   const averageGPA = totalActiveUnits > 0 ? (totalGradePoints / totalActiveUnits).toFixed(2) : "3.00";
   const gpaLabel = totalActiveUnits > 0 ? "Current GWA" : "Min. Target";
   const totalUnits = courses.reduce((sum, course) => sum + parseInt(course.units || 0), 0);
-  // ----------------------------------------------------
 
   const handleAddCourse = async () => {
     await fetchCourses(); 
@@ -162,7 +138,6 @@ const Dashboard = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#0B0E14] text-slate-100 font-sans relative">
       <main className="flex-1 overflow-y-auto p-8 relative z-0">
-        
         <div className="max-w-[1400px] mx-auto w-full">
           
           <header className="flex justify-between items-center mb-10">
@@ -222,7 +197,6 @@ const Dashboard = () => {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {filteredCourses.map((course, index) => {
-                        
                         const mid = parseFloat(course.midtermGrade) || 0;
                         const fin = parseFloat(course.finalGrade) || 0;
                         const isFinalized = course.finalGrade !== null && course.finalGrade !== undefined && course.finalGrade !== "";
@@ -235,6 +209,7 @@ const Dashboard = () => {
                           cardStatus = avg >= 3.0 ? 'PASSED' : 'FAILED';
                         }
 
+                        const hasPendingGoal = localStorage.getItem(`pendingGoal_${course.id}`);
                         const displayProgress = cardStatus === 'PASSED' ? 100 : (course.progress || 0);
 
                         return (
@@ -253,7 +228,7 @@ const Dashboard = () => {
                               </button>
 
                               <div className="bg-[#161B22] p-7 rounded-[2.5rem] border border-slate-800 group-hover:border-violet-500/50 transition-all h-full shadow-2xl relative overflow-hidden">
-                                <div className="flex gap-2 mb-4">
+                                <div className="flex flex-wrap gap-2 mb-4">
                                   {cardStatus === 'PASSED' && (
                                     <div className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
                                       <CheckCircle size={10} /> Passed
@@ -264,6 +239,14 @@ const Dashboard = () => {
                                       <X size={10} /> Failed Target
                                     </div>
                                   )}
+                                  
+                                  {/* TARGET PENDING BADGE - NOW IN ORANGE */}
+                                  {hasPendingGoal && (
+                                    <div className="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-[0_0_10px_rgba(251,146,60,0.1)]">
+                                      <Target size={10} /> Target Pending
+                                    </div>
+                                  )}
+
                                   <div className="bg-slate-800 text-slate-400 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border border-slate-700">
                                     {course.midtermWeight}/{course.finalWeight}
                                   </div>
@@ -334,7 +317,6 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
-
       <AddCourseModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAdd={handleAddCourse} />
     </div>
   );
