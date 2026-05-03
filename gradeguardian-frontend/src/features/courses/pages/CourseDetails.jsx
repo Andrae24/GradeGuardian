@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Trash2, Plus, GraduationCap, CheckCircle, GitBranch, PieChart, Target, X, Lock, Unlock, AlertCircle
+  Trash2, Plus, GraduationCap, CheckCircle, GitBranch, PieChart, Target, X, Lock, Unlock, AlertCircle, FastForward, Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -60,30 +60,41 @@ const CourseDetails = () => {
     } catch (error) { console.error("Error fetching data:", error); }
   };
 
-  const currentViewAssessments = assessments.filter(item => item.period === activeView);
+  // NEW: Filters for the current period AND sorts by ID (Oldest top, Newest bottom)
+  const currentViewAssessments = assessments
+    .filter(item => item.period === activeView)
+    .sort((a, b) => a.id - b.id);
 
-  const isCS = (name) => name && name.trim().toUpperCase() === 'CLASS STANDING';
   const isMajorExam = (name) => {
     if (!name) return false;
     const n = name.trim().toUpperCase();
     return ['PRELIM EXAM', 'MIDTERM EXAM', 'PREFINAL EXAM', 'FINAL EXAM'].includes(n);
   };
+  
+  const isCS = (name) => name && name.trim().toUpperCase() === 'CLASS STANDING';
 
+  // Secretly calculate the sum of all subcomponents (quizzes, recitations, etc.)
+  const pendingCSScore = currentViewAssessments
+    .filter(a => !isMajorExam(a.name) && !isCS(a.name))
+    .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
+
+  // Only calculates the row explicitly named "Class Standing"
   const rawCSContribution = currentViewAssessments
     .filter(a => isCS(a.name))
     .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
 
+  // Only calculates Major Exams
   const rawExamContribution = currentViewAssessments
     .filter(a => isMajorExam(a.name))
     .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
 
   const contribution = rawCSContribution + rawExamContribution;
   
+  // Only counts the weight of the finalized Class Standing and Major Exams
   const displayWeight = currentViewAssessments
     .filter(a => isCS(a.name) || isMajorExam(a.name))
     .reduce((acc, item) => acc + (item.weight || 0), 0);
 
-  // --- STEP 1 FIX: Calculate Actual Overall Final Grade (Truncated) ---
   const rawFinalsGpa = courseInfo.finalGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
 
   const displayGPA = activeView === 'MIDTERM' 
@@ -93,13 +104,11 @@ const CourseDetails = () => {
         : rawFinalsGpa);
 
   const currentStatus = (displayGPA !== "0.0" && parseFloat(displayGPA) >= 3.0) ? "Passing" : "Failing";
-  // ----------------------------------------------------------------------------------
 
   const handlePeriodSelection = async (period, manualData = null) => {
     const gradeValue = manualData && typeof manualData === 'object' ? manualData.gpa : manualData;
     const isUnlockingAction = gradeValue !== null && gradeValue !== undefined;
 
-    // 1. UNLOCK BRANCH
     if (period === 'FINALS' && isUnlockingAction) {
       try {
         const payload = {
@@ -114,13 +123,10 @@ const CourseDetails = () => {
         });
         
         if (response.ok) {
-          // --- STEP 2 FIX: Evaluate actual midterm grade for the dashboard ---
           const status = parseFloat(gradeValue) >= 3.0 ? 'PASSED' : 'FAILED';
           localStorage.setItem(`course_status_${id}`, status);
-          // -------------------------------------------------------------------
 
           await fetchData(); 
-          
           setActiveView('FINALS');
           setIsPeriodModalOpen(false);
           confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -135,13 +141,11 @@ const CourseDetails = () => {
       return;
     }
 
-    // 2. CHECK IF LOCKED
     if (period === 'FINALS' && !isFinalsUnlocked && !isUnlockingAction) {
         alert("🔒 Milestone Locked: Resolve Midterm grade first.");
         return;
     }
 
-    // 3. STANDARD NAVIGATION
     setIsPeriodModalOpen(false);
     setActiveView(period);
     
@@ -204,14 +208,12 @@ const CourseDetails = () => {
         body: JSON.stringify(finalizePayload)
       });
 
-      // --- STEP 3 FIX: Push the true final status to the Dashboard ---
       if (isFinals && courseInfo.midtermGrade) {
         const overallGPA = Math.floor(((parseFloat(courseInfo.midtermGrade) + parseFloat(finalGPAValue)) / 2) * 10) / 10;
         localStorage.setItem(`course_status_${id}`, overallGPA >= 3.0 ? 'PASSED' : 'FAILED');
       } else {
         localStorage.setItem(`course_status_${id}`, parseFloat(finalGPAValue) >= 3.0 ? 'PASSED' : 'FAILED');
       }
-      // ---------------------------------------------------------------
 
       if (didAchieve) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
       fetchData();
@@ -231,7 +233,7 @@ const CourseDetails = () => {
   };
 
   const handleDeleteAssessment = async (assessmentId) => {
-    if (window.confirm(`Delete assessment?`)) {
+    if (window.confirm(`Are you sure you want to delete this assessment?`)) {
       await fetch(`${API_BASE_URL}/api/assessments/${assessmentId}`, { method: 'DELETE' });
       fetchData();
     }
@@ -240,14 +242,34 @@ const CourseDetails = () => {
   return (
     <div className="bg-[#0B0E14] min-h-screen text-slate-100 font-sans pb-20">
       <div className="p-8 max-w-6xl mx-auto space-y-10">
+        
+        {/* HEADER SECTION */}
         <header className="flex flex-wrap items-end justify-between gap-6">
           <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
             <h2 className="text-4xl font-black text-white tracking-tight italic uppercase">{courseInfo.title}</h2>
-            <p className="text-lg text-slate-400 font-medium italic">Code: <span className="text-white font-sans not-italic font-sans">{courseInfo.code}</span></p>
+            <p className="text-lg text-slate-400 font-medium italic">Code: <span className="text-white font-sans not-italic">{courseInfo.code}</span></p>
           </motion.div>
-          <button onClick={() => setIsPeriodModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-violet-600 text-white font-black uppercase text-xs tracking-widest shadow-xl hover:brightness-110 active:scale-95">
-            <Plus size={18} /> Add Assessment
-          </button>
+          
+          <div className="flex flex-wrap gap-3">
+            {/* QUICK UNLOCK: Validated Input */}
+            {!isFinalsUnlocked && (
+              <button 
+                onClick={() => {
+                  const manualGrade = prompt("Enter your official Midterm GPA (e.g., 3.0 or 2.5):");
+                  if (manualGrade && !isNaN(parseFloat(manualGrade))) {
+                    handlePeriodSelection('FINALS', { gpa: parseFloat(manualGrade).toFixed(1) });
+                  }
+                }}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#161B22] border border-slate-800 text-slate-400 font-black uppercase text-xs tracking-widest hover:bg-slate-800 hover:text-white transition-all shadow-xl"
+              >
+                <FastForward size={16} /> Skip to Finals
+              </button>
+            )}
+
+            <button onClick={() => setIsPeriodModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-violet-600 text-white font-black uppercase text-xs tracking-widest shadow-xl hover:brightness-110 active:scale-95 transition-all">
+              <Plus size={18} /> Add Assessment
+            </button>
+          </div>
         </header>
 
         {/* ACTIVE TARGET BANNER */}
@@ -262,7 +284,7 @@ const CourseDetails = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-[#0B0E14] p-2 rounded-2xl border border-slate-800">
-                <span className="text-xs font-bold text-slate-400 px-3 italic">Achieved?</span>
+                <span className="text-xs font-bold text-slate-400 px-3 italic">Did you hit this target?</span>
                 <button onClick={() => resolveGoal(true)} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition-all active:scale-95">YES</button>
                 <button onClick={() => setIsResultModalOpen(true)} className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-black rounded-xl transition-all active:scale-95">NO</button>
               </div>
@@ -277,6 +299,7 @@ const CourseDetails = () => {
               const isLocked = p === 'FINALS' && !isFinalsUnlocked;
               return (
                 <button key={p}
+                  title={isLocked ? "Add your Midterm grade first to unlock Finals" : `Switch to ${p}`}
                   onClick={() => { if (!isLocked) setActiveView(p); }}
                   className={`px-12 py-3 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all duration-500 flex items-center gap-2
                     ${activeView === p ? 'bg-violet-600 text-white shadow-xl' : 'text-slate-500 hover:text-slate-300'}
@@ -296,19 +319,19 @@ const CourseDetails = () => {
           <MetricCard index={0} title={activeView === 'FINALS' ? "Overall GPA" : "GPA"} value={displayGPA} icon={<GraduationCap size={24}/>} color={parseFloat(displayGPA) < 3.0 ? "text-red-500" : "text-violet-400"} />
           <MetricCard index={1} title="Status" value={currentStatus} icon={currentStatus === "Passing" ? <CheckCircle size={24}/> : <X size={24}/>} color={currentStatus === "Passing" ? "text-emerald-500" : "text-red-500"} />
           <MetricCard index={2} title="Units" value={courseInfo.units || "3"} icon={<GitBranch size={24}/>} color="text-white" />
-          <MetricCard index={3} title="Total Weight" value={`${displayWeight}%`} icon={<PieChart size={24}/>} color="text-emerald-400" />
+          <MetricCard index={3} title="Weight Tracked" value={`${displayWeight}%`} icon={<PieChart size={24}/>} color="text-emerald-400" />
         </div>
 
-        {/* GRADING PROCEDURE NOTE */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-2xl flex items-start gap-3 shadow-lg">
-          <AlertCircle className="text-blue-400 shrink-0" size={20} />
+        {/* GRADING PROCEDURE NOTE (UPDATED FOR BATCHING) */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-500/10 border border-blue-500/30 p-5 rounded-2xl flex items-start gap-4 shadow-lg">
+          <Info className="text-blue-400 shrink-0 mt-0.5" size={24} />
           <div>
-            <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-1">Grading Procedure</p>
-            <p className="text-sm text-slate-300 leading-relaxed italic">
-              To determine the contribution of your <strong>Class Standing subcategories</strong>, create an assessment 
-              and input your raw score, total, and weight. Calculate the <strong>sum of all contributions</strong> from these subcategories 
-              and generate a finalized assessment titled <strong>"Class Standing"</strong> to record your overall contribution.
-            </p>
+            <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-2">How to track Subcomponents & Class Standing</p>
+            <ul className="text-sm text-slate-300 leading-relaxed space-y-1 list-disc list-inside">
+              <li>Click Add Assessment and use the <strong>"Group Multiple Items"</strong> toggle to easily batch multiple quizzes into a single entry.</li>
+              <li>When ready to finalize, add a new assessment named exactly <strong>"Class Standing"</strong>.</li>
+              <li>The system will instantly auto-fill your calculated total score! Just enter the weight (e.g., 40%) to apply it to your GPA.</li>
+            </ul>
           </div>
         </motion.div>
 
@@ -332,18 +355,25 @@ const CourseDetails = () => {
                 {currentViewAssessments.length > 0 ? currentViewAssessments.map((item) => {
                   const specialMatch = isCS(item.name) || isMajorExam(item.name);
                   return (
-                    <tr key={item.id} className={`transition-colors group border-l-4 ${specialMatch ? 'bg-violet-600/10 border-violet-500 hover:bg-violet-600/20' : 'hover:bg-white/[0.02] border-transparent'}`}>
-                      <td className={`px-8 py-5 text-center ${specialMatch ? 'text-violet-400 font-black' : 'text-white font-bold'}`}>{item.name}</td>
+                    <tr key={item.id} className={`transition-colors group border-l-4 ${specialMatch ? 'bg-violet-600/10 border-violet-500 hover:bg-violet-600/20' : 'bg-[#161B22] border-slate-700 hover:bg-white/[0.02]'}`}>
+                      <td className={`px-8 py-5 text-center ${specialMatch ? 'text-violet-400 font-black' : 'text-slate-300 font-bold'}`}>{item.name}</td>
                       <td className={`px-8 py-5 text-center ${specialMatch ? 'text-violet-300 font-black' : 'text-slate-400 font-bold'}`}>{item.weight}%</td>
                       <td className={`px-8 py-5 text-center ${specialMatch ? 'text-white font-black' : 'text-white font-bold'}`}>{item.score}/{item.total}</td>
-                      <td className="px-8 py-5 text-violet-400 font-black text-center text-lg">+{( (item.score / item.total) * item.weight ).toFixed(1)}%</td>
+                      <td className={`px-8 py-5 text-center text-lg ${specialMatch ? 'text-violet-400 font-black' : 'text-emerald-400 font-bold'}`}>+{( (item.score / item.total) * item.weight ).toFixed(1)}%</td>
                       <td className="px-8 py-5 text-right">
-                        <button onClick={() => handleDeleteAssessment(item.id)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
+                        <button onClick={() => handleDeleteAssessment(item.id)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   );
                 }) : (
-                  <tr><td colSpan={5} className="px-8 py-16 text-center text-slate-500 italic">No assessments recorded for this period.</td></tr>
+                  <tr>
+                    <td colSpan={5} className="px-8 py-16 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-3 opacity-60">
+                        <PieChart size={32} className="text-slate-500" />
+                        <p className="text-slate-400 font-medium">No assessments yet. Click <strong>Add Assessment</strong> above to start tracking!</p>
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -372,12 +402,13 @@ const CourseDetails = () => {
         />
         <PeriodSelectionModal isOpen={isPeriodModalOpen} onClose={() => setIsPeriodModalOpen(false)} onSelect={handlePeriodSelection} isMidtermComplete={isFinalsUnlocked} />
         
-        {/* ADD ASSESSMENT FORM MODAL */}
+        {/* Pass the pending calculation to the form */}
         <AddAssessmentForm 
           isOpen={isEntryModalOpen} 
           periodName={activeView} 
           onClose={() => setIsEntryModalOpen(false)} 
           onSubmit={handleAssessmentSubmit} 
+          autoFillCSScore={pendingCSScore} 
         />
       </div>
     </div>
