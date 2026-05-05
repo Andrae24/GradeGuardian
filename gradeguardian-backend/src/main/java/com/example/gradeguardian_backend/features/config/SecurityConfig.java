@@ -38,7 +38,7 @@ public class SecurityConfig {
 
     /**
      * TOP-LEVEL CORS FILTER
-     * Resolves the CORS pre-flight blocks seen in image_f289c3.png.
+     * Resolves CORS blocks by explicitly allowing your Grade Guardian Render URLs.
      */
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -48,11 +48,12 @@ public class SecurityConfig {
         
         config.setAllowCredentials(true);
         
-        // Updated with the correct Render frontend URL (fixed the typo from l6b2 to 16b2)
+        // Includes the 'l' variant you use and the '1' variant seen in the error logs
         config.setAllowedOrigins(List.of(
             "http://localhost:5173",
             "https://gradeguardian.onrender.com",
-            "https://gradeguardian-l6b2.onrender.com" 
+            "https://gradeguardian-l6b2.onrender.com",
+            "https://gradeguardian-16b2.onrender.com"
         )); 
         
         config.setAllowedHeaders(List.of("*")); 
