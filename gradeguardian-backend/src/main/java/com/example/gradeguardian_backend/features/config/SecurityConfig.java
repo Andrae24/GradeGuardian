@@ -52,7 +52,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(
             "http://localhost:5173",
             "https://gradeguardian.onrender.com",
-            "https://gradeguardian-16b2.onrender.com" 
+            "https://gradeguardian-l6b2.onrender.com" 
         )); 
         
         config.setAllowedHeaders(List.of("*")); 
