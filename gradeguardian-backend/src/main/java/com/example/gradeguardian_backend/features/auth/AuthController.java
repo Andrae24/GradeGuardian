@@ -1,5 +1,9 @@
 package com.example.gradeguardian_backend.features.auth;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -8,10 +12,9 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,11 +35,11 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private JavaMailSender mailSender;
+    // Pulls the Resend API key from application.properties
+    @Value("${resend.api.key}")
+    private String resendApiKey;
 
     // Temporary storage for recovery codes (Email -> OTP)
-    // For production, consider using Redis or a dedicated DB table with expiration
     private static final Map<String, String> otpStorage = new ConcurrentHashMap<>();
 
     // --- SIGNUP ---
@@ -120,15 +123,39 @@ public class AuthController {
         otpStorage.put(email, otp);
 
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("Grade Guardian Recovery Code");
-            message.setText("Your Night Owl recovery code is: " + otp + "\n\nThis code will expire shortly.");
-            mailSender.send(message);
+            // The JSON payload requested by the Resend API
+            String jsonPayload = """
+                {
+                    "from": "onboarding@resend.dev",
+                    "to": ["%s"],
+                    "subject": "Recovery Code",
+                    "html": "<div style='font-family: sans-serif; padding: 20px;'><h2>Password Recovery</h2><p>Your 6-digit recovery code is: <strong><span style='font-size: 24px; color: #7c3aed;'>%s</span></strong></p></div>"
+                }
+                """.formatted(email, otp);
 
-            response.put("message", "Recovery code sent to email.");
-            return ResponseEntity.ok(response);
+            // Build the HTTPS POST request
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                    .build();
+
+            // Send the request over standard web traffic
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+            if (httpResponse.statusCode() == 200 || httpResponse.statusCode() == 201) {
+                response.put("message", "Recovery code sent to email.");
+                return ResponseEntity.ok(response);
+            } else {
+                System.err.println("Resend API Error: " + httpResponse.body());
+                response.put("error", "Failed to send email via API.");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            }
+
         } catch (Exception e) {
+            e.printStackTrace();
             response.put("error", "Failed to send email. Please try again later.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
