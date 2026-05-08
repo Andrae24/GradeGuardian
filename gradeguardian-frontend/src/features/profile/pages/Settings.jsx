@@ -71,10 +71,11 @@ const Settings = () => {
 
           const calculatedGWA = totalUnits > 0 ? (totalGradePoints / totalUnits) : 0;
           
+          // --- OPTIMIZED HONOR LOGIC ---
           let title = "Junior Student";
-          if (calculatedGWA >= 4.800) title = "Summa Cum Laude Candidate";
-          else if (calculatedGWA >= 4.600) title = "Magna Cum Laude Candidate";
-          else if (calculatedGWA >= 4.400) title = "Cum Laude Candidate";
+          if (calculatedGWA >= 4.800) title = "Summa Cum Laude"; // Removed 'Candidate' for settings view
+          else if (calculatedGWA >= 4.600) title = "Magna Cum Laude";
+          else if (calculatedGWA >= 4.400) title = "Cum Laude";
           else if (totalUnits < 70) title = "Technologian";
 
           setStats({
@@ -156,7 +157,6 @@ const Settings = () => {
     } catch (error) { alert("Error updating profile"); }
   };
 
-  // --- UPDATED LOGOUT HANDLER ---
   const handleLogout = () => {
     // Loop through keys to delete session data but protect grade goals and banners
     Object.keys(localStorage).forEach(key => {
@@ -172,13 +172,16 @@ const Settings = () => {
     navigate('/auth');
   };
 
+  // Determine if the current title is an honor standing
+  const isHonor = stats.honorTitle.includes('Laude');
+
   return (
-    <div className="flex min-h-screen bg-[#0B0E14] text-slate-300 font-sans selection:bg-violet-500/30">
+    <div className="flex min-h-screen bg-[#0B0E14] text-slate-300 font-sans selection:bg-violet-500/30 overflow-hidden">
       <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <header className="h-16 flex items-center justify-between px-8 border-b border-slate-800 bg-[#0B0E14]/80 backdrop-blur-md sticky top-0 z-10">
-          <h2 className="text-white font-black italic uppercase tracking-tighter text-xl">Settings</h2>
+          <h2 className="text-white font-black italic uppercase tracking-tighter text-xl">System Settings</h2>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-bold text-white leading-none mb-1">{userName}</p>
@@ -216,7 +219,14 @@ const Settings = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatBox title="Current GWA" value={stats.gwa} icon={<GraduationCap className="text-emerald-500" />} />
             <StatBox title="Units Earned" value={stats.units} sub="/ 120" icon={<BarChart3 className="text-blue-500" />} />
-            <StatBox title="Current Status" value={stats.honorTitle.split(' ')[0]} sub={stats.honorTitle.split(' ').slice(1).join(' ')} icon={<Sparkles className="text-violet-500" />} highlight />
+            
+            {/* --- FIXED STATBOX CALL --- */}
+            <StatBox 
+                title="Academic Standing" 
+                value={stats.honorTitle} // Send full title (e.g., "Cum Laude")
+                icon={<Sparkles className="text-violet-500" />} 
+                highlight={isHonor} // Highlight in purple only if it's an honor title
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -253,14 +263,14 @@ const Settings = () => {
 
       {showEditProfileModal && (
         <Modal title="Edit Profile" onClose={() => setShowEditProfileModal(false)}>
-           <form onSubmit={handleUpdateProfile} className="space-y-4 text-left">
+            <form onSubmit={handleUpdateProfile} className="space-y-4 text-left">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
               <input type="text" className="w-full bg-[#0B0E14] border border-slate-800 rounded-2xl px-6 py-4 text-white outline-none focus:ring-2 focus:ring-violet-600" value={editName} onChange={(e) => setEditName(e.target.value)} />
               <div className="flex gap-3 mt-4">
                 <button type="button" onClick={() => setShowEditProfileModal(false)} className="flex-1 py-4 rounded-2xl bg-slate-800 font-black uppercase text-[10px]">Cancel</button>
                 <button type="submit" className="flex-[2] bg-violet-600 py-4 rounded-2xl font-black uppercase text-[10px] text-white">Save Changes</button>
               </div>
-           </form>
+            </form>
         </Modal>
       )}
 
@@ -303,7 +313,7 @@ const Settings = () => {
             </div>
             <p className="text-slate-400 text-xs leading-relaxed px-4">
               Grade Guardian is a specialized academic management engine designed for Technologians. 
-              It provides real-time GWA tracking and honor forecasting.
+              It provides real-time GWA tracking and honor forecasting based on official university criteria.
             </p>
             <div className="pt-4 flex flex-col gap-2">
               <div className="bg-[#0B0E14] p-4 rounded-2xl border border-slate-800/50 flex justify-between items-center text-left">
@@ -333,16 +343,32 @@ const Settings = () => {
   );
 };
 
-const StatBox = ({ title, value, sub, icon, highlight }) => (
-  <div className="bg-[#161B22] p-8 rounded-[2.5rem] border border-slate-800 shadow-xl relative overflow-hidden group">
-    <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">{icon}</div>
-    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{title}</p>
-    <div className="flex items-baseline gap-2">
-      <h3 className={`text-4xl font-black italic tracking-tighter ${highlight ? 'text-violet-500' : 'text-white'}`}>{value}</h3>
-      {sub && <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{sub}</span>}
+// --- OPTIMIZED STATBOX COMPONENT ---
+const StatBox = ({ title, value, sub, icon, highlight }) => {
+  // If highlight is true, we assume it's an honor title and use smaller text to fit it on one line.
+  // Otherwise, use the large text style suitable for numbers.
+  const valueStyling = highlight
+    ? 'text-xl font-black text-violet-500 uppercase tracking-tight' // Honor style
+    : 'text-4xl font-black text-white italic tracking-tighter';     // Number style
+
+  return (
+    <div className="bg-[#161B22] p-8 rounded-[2.5rem] border border-slate-800 shadow-xl relative overflow-hidden group h-full flex flex-col justify-between">
+      <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">{icon}</div>
+      <div>
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{title}</p>
+        <div className="flex items-baseline gap-2">
+          {/* Apply dynamic styling based on highlight prop */}
+          <h3 className={valueStyling}>{value}</h3>
+          
+          {/* Subtext only appears if provided and NOT highlighted (used for "/ 120 Units") */}
+          {(sub && !highlight) && (
+            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{sub}</span>
+          )}
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const SecurityBtn = ({ label, icon, onClick }) => (
   <button onClick={onClick} className="w-full px-8 py-6 flex items-center justify-between hover:bg-white/[0.02] transition-all group border-b border-slate-800/50 last:border-none text-left">
