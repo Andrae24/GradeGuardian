@@ -4,7 +4,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +33,10 @@ public class AuthController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    // Injecting the new Supabase service
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
 
     // Pulls the Resend API key from application.properties
     @Value("${resend.api.key}")
@@ -91,6 +94,7 @@ public class AuthController {
                 response.put("id", String.valueOf(user.getId()));
                 response.put("name", user.getName()); 
                 response.put("email", user.getEmail());
+                // This will now return the Supabase URL instead of a massive Base64 string
                 response.put("photoUrl", user.getPhotoUrl() != null ? user.getPhotoUrl() : ""); 
                 
                 return ResponseEntity.ok(response);
@@ -206,7 +210,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
-    // --- UPLOAD PHOTO ---
+    // --- UPLOAD PHOTO (UPDATED TO SUPABASE) ---
     @PostMapping("/upload-photo")
     public ResponseEntity<Map<String, String>> uploadPhoto(
             @RequestParam("file") MultipartFile file,
@@ -214,23 +218,28 @@ public class AuthController {
         
         Map<String, String> response = new HashMap<>();
         try {
-            byte[] fileContent = file.getBytes();
-            String encodedString = Base64.getEncoder().encodeToString(fileContent);
-            String base64Image = "data:" + file.getContentType() + ";base64," + encodedString;
-
             Optional<User> userOpt = userRepository.findByEmail(email);
             if (userOpt.isPresent()) {
+                // 1. Upload to Supabase and retrieve the public URL
+                String publicUrl = supabaseStorageService.uploadFile(file, email);
+
+                // 2. Save ONLY the URL string to the database
                 User user = userOpt.get();
-                user.setPhotoUrl(base64Image); 
+                user.setPhotoUrl(publicUrl); 
                 userRepository.save(user);
 
-                response.put("photoUrl", base64Image);
+                // 3. Return the URL to the frontend
+                response.put("photoUrl", publicUrl);
                 return ResponseEntity.ok(response);
+            } else {
+                response.put("error", "User not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
             }
         } catch (Exception e) {
-            response.put("error", "Conversion failed");
+            e.printStackTrace();
+            response.put("error", "Upload failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     // --- UPDATE PROFILE NAME ---
