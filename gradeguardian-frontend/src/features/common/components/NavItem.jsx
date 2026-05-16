@@ -6,15 +6,18 @@ export const NavItem = ({ icon, label, to }) => {
     <NavLink 
       to={to}
       className={({ isActive }) => 
-        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+        `flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 hover:translate-x-0.5 border ${
           isActive 
-            ? 'bg-violet-600/10 text-violet-500 font-medium' 
-            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+            ? 'bg-violet-600/10 border-violet-500/20 text-violet-400 shadow-lg shadow-violet-500/5' 
+            : 'border-transparent text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
         }`
       }
     >
-      {icon} 
-      <span>{label}</span>
+      {/* Icon Wrapper for Custom Sizing Uniformity */}
+      <div className="flex items-center justify-center shrink-0">
+        {icon}
+      </div> 
+      <span className="leading-none pt-[1px]">{label}</span>
     </NavLink>
   );
 };

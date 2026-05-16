@@ -136,24 +136,34 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0B0E14] text-slate-100 font-sans relative">
-      <main className="flex-1 overflow-y-auto p-8 relative z-0">
-        <div className="max-w-[1400px] mx-auto w-full">
+    <div className="flex h-screen overflow-hidden bg-[#07090E] text-slate-100 font-sans relative selection:bg-violet-500/40">
+      {/* Cinematic Ambient Mesh Blurs */}
+      <div className="absolute top-[-8%] left-[-5%] w-[45%] h-[45%] bg-violet-600/5 rounded-full blur-[140px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] left-[30%] w-[40%] h-[40%] bg-indigo-600/[0.02] rounded-full blur-[140px] pointer-events-none"></div>
+
+      <main className="flex-1 overflow-y-auto p-10 relative z-10 custom-scrollbar">
+        <div className="max-w-[1400px] mx-auto w-full space-y-12">
           
-          <header className="flex justify-between items-center mb-10">
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-              <h2 className="text-3xl font-black text-white tracking-tight italic uppercase">
+          {/* Header Dashboard Area */}
+          <header className="flex flex-col sm:flex-row justify-between sm:items-end gap-6 pb-6 border-b border-slate-900">
+            <motion.div initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_10px_#8b5cf6]"></div>
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-[0.25em]">Session Live</span>
+              </div>
+              <h2 className="text-4xl font-black text-white tracking-tight italic uppercase leading-none">
                 Welcome back, {userName}!
               </h2>
-              <p className="text-slate-400 font-medium mt-1">Here's your academic overview for the semester.</p>
+              <p className="text-slate-400 text-sm font-medium">Here's your real-time academic overview for the current term.</p>
             </motion.div>
+            
             <div className="flex gap-4">
               <div className="relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-violet-500 transition-colors" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-violet-500 transition-colors" />
                 <input 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-[#161B22] border-slate-800 text-white pl-10 pr-4 py-2.5 rounded-xl focus:ring-2 focus:ring-violet-600 w-64 outline-none border transition-all font-medium text-sm" 
+                  className="bg-[#11141D] border-slate-900 text-slate-200 pl-11 pr-4 py-3 rounded-2xl focus:ring-1 focus:ring-violet-500/50 w-72 outline-none border transition-all font-semibold text-xs tracking-wide shadow-inner" 
                   placeholder="Search courses..." 
                   type="text" 
                 />
@@ -161,37 +171,46 @@ const Dashboard = () => {
             </div>
           </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-             <StatCard label="Courses Passed" value={metrics.passed.toString()} trend="Eligible for GWA" icon={<CheckCircle className="text-emerald-500"/>} />
-             <StatCard label="Total Units" value={totalUnits.toString()} trend="Current load" icon={<BarChart3 className="text-violet-500"/>} />
-             <StatCard label="Pending Goals" value={metrics.pending.toString()} trend={metrics.pending > 0 ? "Exams awaiting results" : "All caught up"} icon={<Clock className="text-amber-500"/>} />
+          {/* Stats Analytics Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+             <StatCard label="Courses Passed" value={metrics.passed.toString()} trend="Eligible for GWA" icon={<CheckCircle className="text-emerald-500" size={20}/>} />
+             <StatCard label="Total Units" value={totalUnits.toString()} trend="Current load" icon={<BarChart3 className="text-violet-500" size={20}/>} />
+             <StatCard label="Pending Goals" value={metrics.pending.toString()} trend={metrics.pending > 0 ? "Exams awaiting results" : "All caught up"} icon={<Clock className="text-amber-500" size={20}/>} />
              <StatCard label="Needs Attention" value={metrics.attention.toString()} trend={metrics.attention > 0 ? "Missed targets!" : "Goals clear"} icon={<AlertTriangle size={18} className={metrics.attention > 0 ? "text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "text-emerald-500"} />} color={metrics.attention > 0 ? "text-red-500" : "text-emerald-500"} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          {/* Layout Break Matrix */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+            
+            {/* Left Hand: Course Deck Layout */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="flex justify-between items-center border-b border-slate-800/50 pb-4">
-                <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Current Enrolled Courses</h3>
-                <button onClick={() => setIsModalOpen(true)} className="bg-violet-600/10 hover:bg-violet-600 text-violet-400 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all border border-violet-500/20">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-900">
+                <h3 className="text-lg font-black text-white uppercase tracking-tight italic">Current Enrolled Courses</h3>
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsModalOpen(true)} 
+                  className="bg-violet-600/10 hover:bg-violet-600 text-violet-400 hover:text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all border border-violet-500/10 shadow-lg shadow-violet-600/5"
+                >
                   <Plus size={14} /> Add Course
-                </button>
+                </motion.button>
               </div>
 
               <AnimatePresence mode='wait'>
                 {filteredCourses.length === 0 ? (
                   <motion.div 
                     key="empty"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-[3rem] bg-[#161B22]/10"
+                    initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
+                    className="py-24 flex flex-col items-center justify-center border border-dashed border-slate-800/80 rounded-[3.5rem] bg-[#11141D]/30"
                   >
-                    <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-6 text-slate-600 border border-slate-700 shadow-xl">
-                      <LayoutGrid size={40} />
+                    <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 text-slate-500 border border-slate-800/60 shadow-xl">
+                      <LayoutGrid size={28} className="text-slate-400" />
                     </div>
-                    <h4 className="text-white font-black uppercase italic text-xl">
+                    <h4 className="text-white font-black uppercase italic text-lg tracking-tight">
                       {searchTerm ? "No Matches Found" : "No Courses Enrolled"}
                     </h4>
-                    <p className="text-slate-500 text-sm mt-2">
-                      {searchTerm ? `No results for "${searchTerm}"` : "Add your first subject to start tracking your progress."}
+                    <p className="text-slate-500 text-xs mt-2 font-medium">
+                      {searchTerm ? `No results found for "${searchTerm}"` : "Add your first subject to start tracking your progress metrics."}
                     </p>
                   </motion.div>
                 ) : (
@@ -215,66 +234,77 @@ const Dashboard = () => {
                         return (
                           <motion.div
                             key={course.id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: index * 0.05 }}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            whileHover={{ y: -4, border: '1px solid rgba(139, 92, 246, 0.25)' }}
+                            transition={{ delay: index * 0.04, type: 'spring', stiffness: 100 }}
+                            className="relative block h-full group"
                           >
-                            <Link to={`/course/${course.id}`} className="group relative block h-full">
-                              <button 
-                                onClick={(e) => handleDeleteCourse(e, course.id, course.title)}
-                                className="absolute top-4 right-4 z-10 p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                            {/* Course Delete Button */}
+                            <motion.button 
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={(e) => handleDeleteCourse(e, course.id, course.title)}
+                              className="absolute top-5 right-5 anonymity-layer z-20 p-2 bg-red-500/5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-slate-900 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl"
+                            >
+                              <Trash2 size={13} />
+                            </motion.button>
 
-                              <div className="bg-[#161B22] p-7 rounded-[2.5rem] border border-slate-800 group-hover:border-violet-500/50 transition-all h-full shadow-2xl relative overflow-hidden">
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                  {cardStatus === 'PASSED' && (
-                                    <div className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
-                                      <CheckCircle size={10} /> Passed
-                                    </div>
-                                  )}
-                                  {cardStatus === 'FAILED' && (
-                                    <div className="bg-red-600 text-white border border-red-500/20 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lg shadow-red-600/20">
-                                      <X size={10} /> Failed Target
-                                    </div>
-                                  )}
-                                  
-                                  {/* TARGET PENDING BADGE - NOW IN ORANGE */}
-                                  {hasPendingGoal && (
-                                    <div className="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-[0_0_10px_rgba(251,146,60,0.1)]">
-                                      <Target size={10} /> Target Pending
-                                    </div>
-                                  )}
+                            <Link to={`/course/${course.id}`} className="block h-full">
+                              <div className="bg-[#11141D] p-8 rounded-[2.5rem] border border-slate-900 transition-all h-full shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[260px]">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-600/[0.01] to-transparent pointer-events-none group-hover:from-violet-600/[0.03] transition-all duration-500"></div>
+                                
+                                <div>
+                                  <div className="flex flex-wrap gap-2 mb-5">
+                                    {cardStatus === 'PASSED' && (
+                                      <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/10 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
+                                        <CheckCircle size={10} /> Passed
+                                      </div>
+                                    )}
+                                    {cardStatus === 'FAILED' && (
+                                      <div className="bg-red-500/10 text-red-400 border border-red-500/10 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md shadow-red-600/5">
+                                        <X size={10} /> Failed Target
+                                      </div>
+                                    )}
+                                    {hasPendingGoal && (
+                                      <div className="bg-orange-500/10 text-orange-400 border border-orange-500/10 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider flex items-center gap-1 animate-pulse shadow-[0_0_10px_rgba(251,146,60,0.05)]">
+                                        <Target size={10} /> Target Pending
+                                      </div>
+                                    )}
 
-                                  <div className="bg-slate-800 text-slate-400 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border border-slate-700">
-                                    {course.midtermWeight}/{course.finalWeight}
+                                    <div className="bg-[#07090E] text-slate-500 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border border-slate-900/80">
+                                      {course.midtermWeight}/{course.finalWeight} Wt
+                                    </div>
                                   </div>
-                                </div>
 
-                                <div className="mb-2">
-                                  <p className={`${course.color || 'text-violet-500'} text-[10px] font-black uppercase tracking-[0.2em] mb-1`}>{course.courseCode}</p>
-                                  <h4 className="text-white font-black text-xl leading-tight group-hover:text-violet-400 transition-colors">{course.title}</h4>
+                                  <div className="space-y-1">
+                                    <p className={`${course.color || 'text-violet-500'} text-[10px] font-black uppercase tracking-[0.2em]`}>{course.courseCode}</p>
+                                    <h4 className="text-white font-black text-xl leading-snug group-hover:text-violet-400 transition-colors duration-300">{course.title}</h4>
+                                  </div>
                                 </div>
                                 
-                                <div className="space-y-3 mt-10">
-                                  <div className="flex justify-between items-end">
-                                    <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest">Weight Progress</span>
-                                    <p className={`text-xs font-black ${course.color || 'text-violet-500'}`}>{displayProgress}%</p>
+                                <div className="space-y-4 mt-8">
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-end">
+                                      <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest leading-none">Weight Progress</span>
+                                      <p className={`text-xs font-black leading-none ${course.color || 'text-violet-500'}`}>{displayProgress}%</p>
+                                    </div>
+                                    <div className="w-full bg-[#07090E] h-1.5 rounded-full overflow-hidden border border-slate-900">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${displayProgress}%` }}
+                                        transition={{ duration: 1.2, ease: "easeOut" }}
+                                        className={`${course.bg || 'bg-violet-600'} h-full rounded-full`} 
+                                      ></motion.div>
+                                    </div>
                                   </div>
-                                  <div className="w-full bg-[#0B0E14] h-2 rounded-full overflow-hidden border border-slate-800">
-                                    <motion.div 
-                                      initial={{ width: 0 }}
-                                      animate={{ width: `${displayProgress}%` }}
-                                      transition={{ duration: 1.5, ease: "easeOut" }}
-                                      className={`${course.bg || 'bg-violet-600'} h-full rounded-full`} 
-                                    ></motion.div>
-                                  </div>
-                                </div>
 
-                                <div className="mt-8 pt-4 border-t border-slate-800/50 flex justify-between items-center text-slate-500 font-bold text-[10px] uppercase tracking-widest">
-                                  <span>{course.units} Units</span>
-                                  <div className="flex items-center gap-1.5 text-violet-500 font-black">Open Details <BarChart3 size={12} /></div>
+                                  <div className="pt-4 border-t border-slate-900/60 flex justify-between items-center text-slate-500 font-bold text-[10px] uppercase tracking-wider">
+                                    <span>{course.units} Credit Units</span>
+                                    <div className="flex items-center gap-1 text-violet-500 font-black text-[9px] uppercase tracking-wider group-hover:text-violet-400 transition-colors">
+                                      Open Deck <ArrowRight size={11} className="transform group-hover:translate-x-0.5 transition-transform" />
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </Link>
@@ -286,30 +316,32 @@ const Dashboard = () => {
               </AnimatePresence>
             </div>
 
-            <div className="space-y-6">
-              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Performance</h3>
+            {/* Right Hand: Term Summary performance Circle */}
+            <div className="space-y-6 w-full">
+              <h3 className="text-lg font-black text-white uppercase tracking-tight italic ml-2">Performance</h3>
               <motion.div 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ y: -4, border: '1px solid rgba(139, 92, 246, 0.2)' }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => navigate('/grades-overview')}
-                className="bg-[#161B22] p-10 rounded-[3.5rem] border border-slate-800 text-center relative overflow-hidden shadow-2xl border-t-violet-500/20 cursor-pointer group transition-all"
+                className="bg-[#11141D] p-10 rounded-[3rem] border border-slate-900 text-center relative overflow-hidden shadow-2xl border-t-violet-500/10 cursor-pointer group transition-all duration-300"
               >
+                <div className="absolute top-0 right-0 w-40 h-40 bg-violet-600/[0.01] rounded-full blur-2xl pointer-events-none"></div>
                 <div className="flex flex-col items-center">
-                  <div className="w-36 h-36 rounded-full flex flex-col items-center justify-center bg-[#0B0E14] border-8 border-slate-800/50 mb-8 shadow-inner relative group-hover:border-violet-500/30 transition-all">
-                    <div className="absolute inset-0 rounded-full border-2 border-violet-500/10 animate-pulse"></div>
-                    <p className="text-4xl font-black text-white tracking-tighter italic">{averageGPA}</p>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest leading-none mt-1">
+                  <div className="w-36 h-36 rounded-full flex flex-col items-center justify-center bg-[#07090E] border-8 border-slate-900/60 mb-8 shadow-inner relative group-hover:border-violet-500/20 transition-all duration-300">
+                    <div className="absolute inset-0 rounded-full border-2 border-violet-500/5 animate-pulse"></div>
+                    <p className="text-4xl font-black text-white tracking-tighter italic leading-none">{averageGPA}</p>
+                    <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest leading-none mt-1.5">
                       {gpaLabel}
                     </p>
                   </div>
-                  <h4 className="text-white font-black text-xl uppercase italic group-hover:text-violet-400 transition-colors">Goal Status</h4>
-                  <p className="text-slate-500 text-sm mt-3 font-medium leading-relaxed">
+                  <h4 className="text-white font-black text-xl uppercase italic group-hover:text-violet-400 transition-colors duration-300">Goal Status</h4>
+                  <p className="text-slate-400 text-xs mt-3 font-medium leading-relaxed max-w-xs">
                     {totalActiveUnits > 0 
-                      ? `You've secured ${totalPassedUnits} out of ${totalUnits} units. Tap to view your honors eligibility.`
-                      : "Finish your assessments to calculate your official GPA."}
+                      ? `You've secured ${totalPassedUnits} out of ${totalUnits} active load units. Tap to forecast honors brackets eligibility.`
+                      : "Finish logging class weights to generate your term analytics dashboard."}
                   </p>
-                  <div className="mt-6 flex items-center gap-2 text-violet-500 text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
-                    View Detailed Breakdown <ArrowRight size={12} />
+                  <div className="mt-6 flex items-center gap-1.5 text-violet-500 text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 transition-all duration-300">
+                    View Detailed Analytics <ArrowRight size={12} />
                   </div>
                 </div>
               </motion.div>
