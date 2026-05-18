@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // Imports
 import AuthScreen from "./features/auth/pages/AuthScreen";
 import Dashboard from "./features/dashboard/pages/Dashboard";
-import ProfileScreen from "./features/profile/pages/ProfileScreen";
 import CourseDetails from "./features/courses/pages/CourseDetails";
 import Settings from "./features/profile/pages/Settings";
 import GWAHub from './features/gwa/pages/GWAHub';
@@ -30,7 +29,7 @@ function App() {
           {/* Linked to the 'GWA Calculator' icon in sidebar */}
           <Route path="/gwa-calculator" element={<GWAHub />} />
           
-          <Route path="/profile" element={<ProfileScreen />} />
+        
           <Route path="/settings" element={<Settings />} />
 
           {/* Dynamic Routes */}
