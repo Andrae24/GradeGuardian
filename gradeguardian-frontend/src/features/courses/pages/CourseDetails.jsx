@@ -92,12 +92,28 @@ const CourseDetails = () => {
 
   const rawFinalsGpa = courseInfo.finalGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
 
-  const displayGPA = activeView === 'MIDTERM' 
-    ? (courseInfo.midtermGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0"))
-    : (courseInfo.midtermGrade && rawFinalsGpa !== "0.0" 
-        ? (Math.floor(((parseFloat(courseInfo.midtermGrade) + parseFloat(rawFinalsGpa)) / 2) * 10) / 10).toFixed(1) 
-        : rawFinalsGpa);
+  // FIXED NO ROUND UP/FLOOR MATH ENGINE ENGINE BLOCKS BELOW:
+  const getCalculatedDisplayGpa = () => {
+    if (activeView === 'MIDTERM') {
+      return courseInfo.midtermGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
+    } else {
+      // If we have an explicitly logged database final grade, use it directly
+      if (courseInfo.finalGrade) return courseInfo.finalGrade;
 
+      // If we are evaluating tentative finals grades alongside midterms, calculate the weighted average without flooring
+      if (courseInfo.midtermGrade && rawFinalsGpa !== "0.0") {
+        const midVal = parseFloat(courseInfo.midtermGrade);
+        const finVal = parseFloat(rawFinalsGpa);
+        const overallCalculatedGrade = (midVal * (courseInfo.midtermWeight / 100)) + (finVal * (courseInfo.finalWeight / 100));
+        
+        // Return exact value string down to 1 decimal place safely
+        return overallCalculatedGrade.toFixed(1);
+      }
+      return rawFinalsGpa;
+    }
+  };
+
+  const displayGPA = getCalculatedDisplayGpa();
   const currentStatus = (displayGPA !== "0.0" && parseFloat(displayGPA) >= 3.0) ? "Passing" : "Failing";
 
   const handlePeriodSelection = async (period, manualData = null) => {
@@ -192,6 +208,7 @@ const CourseDetails = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(assessmentPayload)
       });
+      
       const finalizePayload = {
         progress: isFinals ? 100 : 50,
         [isFinals ? 'finalGrade' : 'midtermGrade']: finalGPAValue.toString(),
@@ -204,7 +221,9 @@ const CourseDetails = () => {
       });
 
       if (isFinals && courseInfo.midtermGrade) {
-        const overallGPA = Math.floor(((parseFloat(courseInfo.midtermGrade) + parseFloat(finalGPAValue)) / 2) * 10) / 10;
+        const midVal = parseFloat(courseInfo.midtermGrade);
+        const finVal = parseFloat(finalGPAValue);
+        const overallGPA = (midVal * (courseInfo.midtermWeight / 100)) + (finVal * (courseInfo.finalWeight / 100));
         localStorage.setItem(`course_status_${id}`, overallGPA >= 3.0 ? 'PASSED' : 'FAILED');
       } else {
         localStorage.setItem(`course_status_${id}`, parseFloat(finalGPAValue) >= 3.0 ? 'PASSED' : 'FAILED');
@@ -312,7 +331,6 @@ const CourseDetails = () => {
           <MetricCard index={3} title="Weight Tracked" value={`${displayWeight}%`} icon={<PieChart size={24}/>} color="text-emerald-400" />
         </div>
 
-        {/* RE-DESIGNED USER FRIENDLY QUICK GUIDE */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }} 
           animate={{ opacity: 1, y: 0 }} 
@@ -424,7 +442,7 @@ const CourseDetails = () => {
           onClose={() => setIsEntryModalOpen(false)} 
           onSubmit={handleAssessmentSubmit} 
           autoFillCSScore={pendingCSScore} 
-        />
+          />
       </div>
     </div>
   );
