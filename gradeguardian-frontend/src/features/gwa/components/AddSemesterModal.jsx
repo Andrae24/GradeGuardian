@@ -10,7 +10,7 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
   // CONFIGURATION: Dynamic API URL for Production/Local
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-  // --- UPDATED: SECURE POST FETCH LOGIC ---
+  // --- SECURE POST FETCH LOGIC ---
   useEffect(() => {
     if (isOpen) {
       const fetchEligibleCourses = async () => {
@@ -18,7 +18,6 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
         if (!userEmail) return;
 
         try {
-          // Updated to use API_BASE_URL
           const res = await fetch(`${API_BASE_URL}/api/courses/eligible`, {
             method: 'POST',
             headers: {
@@ -55,7 +54,6 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
       yearLevel,
       term,
       courseIds: selectedCourseIds,
-      // Pass the filtered objects. The GWAHub will handle the averaging in its calculation.
       selectedCourses: eligibleCourses.filter(c => selectedCourseIds.includes(c.id))
     };
     
@@ -100,7 +98,16 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
               {eligibleCourses.length > 0 ? eligibleCourses.map(course => {
                 const mid = parseFloat(course.midtermGrade || 0);
                 const fin = parseFloat(course.finalGrade || 0);
-                const avgGrade = (mid + fin) / 2;
+                
+                // Read configuration states dynamically from dataset
+                const midWeight = course.midtermWeight || 50;
+                const finWeight = course.finalWeight || 50;
+
+                // FIXED: Calculates true dynamic syllabus-weighted overall grade instead of blind arithmetic average
+                const overallCalculatedGrade = (mid * (midWeight / 100)) + (fin * (finWeight / 100));
+
+                // FIXED: Strips away trailing float remainders using our exact truncation factor
+                const truncatedAvgGrade = Math.floor(overallCalculatedGrade * 10) / 10;
 
                 return (
                   <div 
@@ -122,7 +129,7 @@ export const AddSemesterModal = ({ isOpen, onClose, onSave }) => {
                           <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{course.courseCode}</span>
                           <span className="text-slate-700 text-[10px]">•</span>
                           <span className="text-violet-400 text-[10px] font-black uppercase">
-                            Avg Grade: {avgGrade.toFixed(2)}
+                            Avg Grade: {truncatedAvgGrade.toFixed(1)}
                           </span>
                         </div>
                       </div>

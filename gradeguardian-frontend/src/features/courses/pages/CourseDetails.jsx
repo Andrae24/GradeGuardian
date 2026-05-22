@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Trash2, Plus, GraduationCap, CheckCircle, GitBranch, PieChart, Target, X, Lock, Unlock, AlertCircle, FastForward, Info, GitMerge, ListPlus
+  Trash2, Plus, GraduationCap, CheckCircle, GitBranch, PieChart, Target, X, Lock, Unlock, AlertCircle, FastForward, Info, GitMerge, ListPlus, Award, Frown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -24,8 +24,8 @@ const CourseDetails = () => {
     units: 0,
     midtermGrade: null,
     finalGrade: null,
-    midtermWeight: 40, 
-    finalWeight: 60    
+    midtermWeight: 50, 
+    finalWeight: 50    
   });
   const [activeView, setActiveView] = useState('MIDTERM');
   const [showCongrats, setShowCongrats] = useState(false);
@@ -34,6 +34,7 @@ const CourseDetails = () => {
   const [pendingGoal, setPendingGoal] = useState(JSON.parse(localStorage.getItem(`pendingGoal_${id}`)) || null);
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [finalCalculatedScore, setFinalCalculatedScore] = useState("0.0");
 
   const midtermStatus = localStorage.getItem(`course_status_${id}`);
   const isFinalsUnlocked = midtermStatus === 'PASSED' || midtermStatus === 'FAILED' || courseInfo.midtermGrade !== null;
@@ -51,8 +52,8 @@ const CourseDetails = () => {
           units: data.units,
           midtermGrade: data.midtermGrade,
           finalGrade: data.finalGrade,
-          midtermWeight: 40,
-          finalWeight: 60
+          midtermWeight: data.midtermWeight || 50, 
+          finalWeight: data.finalWeight || 50      
         });
       }
       const assessmentsRes = await fetch(`${API_BASE_URL}/api/assessments/course/${id}`);
@@ -72,7 +73,7 @@ const CourseDetails = () => {
   
   const isCS = (name) => name && name.trim().toUpperCase() === 'CLASS STANDING';
 
-  const pendingCSScore = currentViewAssessments
+  const pendedCSScore = currentViewAssessments
     .filter(a => !isMajorExam(a.name) && !isCS(a.name))
     .reduce((acc, curr) => acc + (curr.total > 0 ? (curr.score / curr.total) * curr.weight : 0), 0);
 
@@ -92,22 +93,21 @@ const CourseDetails = () => {
 
   const rawFinalsGpa = courseInfo.finalGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
 
-  // FIXED NO ROUND UP/FLOOR MATH ENGINE ENGINE BLOCKS BELOW:
+  // FIXED: Replaced toFixed with dynamic decimal truncation math to stop 4.075 from rounding up to 4.1
   const getCalculatedDisplayGpa = () => {
     if (activeView === 'MIDTERM') {
       return courseInfo.midtermGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
     } else {
-      // If we have an explicitly logged database final grade, use it directly
       if (courseInfo.finalGrade) return courseInfo.finalGrade;
 
-      // If we are evaluating tentative finals grades alongside midterms, calculate the weighted average without flooring
       if (courseInfo.midtermGrade && rawFinalsGpa !== "0.0") {
         const midVal = parseFloat(courseInfo.midtermGrade);
         const finVal = parseFloat(rawFinalsGpa);
         const overallCalculatedGrade = (midVal * (courseInfo.midtermWeight / 100)) + (finVal * (courseInfo.finalWeight / 100));
         
-        // Return exact value string down to 1 decimal place safely
-        return overallCalculatedGrade.toFixed(1);
+        // Exact floor down truncation
+        const truncatedGpa = Math.floor(overallCalculatedGrade * 10) / 10;
+        return truncatedGpa.toFixed(1);
       }
       return rawFinalsGpa;
     }
@@ -186,7 +186,6 @@ const CourseDetails = () => {
       const addedContribution = (calculatedGrade && calculatedGrade.total > 0) 
         ? (calculatedGrade.score / calculatedGrade.total) * calculatedGrade.weight 
         : 0;
-      
       const newTotalContribution = contribution + addedContribution;
       finalGPAValue = transmuteToGPA(newTotalContribution);
     }
@@ -220,16 +219,29 @@ const CourseDetails = () => {
         body: JSON.stringify(finalizePayload)
       });
 
+      // FIXED: Applied exact truncation block inside prediction resolver paths to keep overlays precise
       if (isFinals && courseInfo.midtermGrade) {
         const midVal = parseFloat(courseInfo.midtermGrade);
         const finVal = parseFloat(finalGPAValue);
         const overallGPA = (midVal * (courseInfo.midtermWeight / 100)) + (finVal * (courseInfo.finalWeight / 100));
+        
+        const truncatedGpa = Math.floor(overallGPA * 10) / 10;
+        const formattedGpa = truncatedGpa.toFixed(1);
+        
+        setFinalCalculatedScore(formattedGpa);
         localStorage.setItem(`course_status_${id}`, overallGPA >= 3.0 ? 'PASSED' : 'FAILED');
+
+        if (overallGPA >= 3.0) {
+          setShowCongrats(true);
+          confetti({ particleCount: 180, spread: 80, origin: { y: 0.5 } });
+        } else {
+          setShowFailure(true);
+        }
       } else {
         localStorage.setItem(`course_status_${id}`, parseFloat(finalGPAValue) >= 3.0 ? 'PASSED' : 'FAILED');
       }
 
-      if (didAchieve) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+      if (didAchieve && !isFinals) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
       fetchData();
     } catch (err) { console.error("Resolution Error:", err); }
   };
@@ -242,7 +254,32 @@ const CourseDetails = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (response.ok) { setIsEntryModalOpen(false); fetchData(); }
+      if (response.ok) { 
+        setIsEntryModalOpen(false); 
+        await fetchData();
+
+        // FIXED: Applied dynamic truncation check here to ensure manual entries don't force rounding artifacts either
+        if (activeView === 'FINALS' && formData.name.trim().toUpperCase() === 'FINAL EXAM') {
+          setTimeout(() => {
+            if (courseInfo.midtermGrade) {
+              const midVal = parseFloat(courseInfo.midtermGrade);
+              const calculatedFinGpa = parseFloat(rawFinalsGpa);
+              const summaryGpa = (midVal * (courseInfo.midtermWeight / 100)) + (calculatedFinGpa * (courseInfo.finalWeight / 100));
+              
+              const truncatedSummaryGpa = Math.floor(summaryGpa * 10) / 10;
+              const formattedGpa = truncatedSummaryGpa.toFixed(1);
+              
+              setFinalCalculatedScore(formattedGpa);
+              if (summaryGpa >= 3.0) {
+                setShowCongrats(true);
+                confetti({ particleCount: 180, spread: 80, origin: { y: 0.5 } });
+              } else {
+                setShowFailure(true);
+              }
+            }
+          }, 600);
+        }
+      }
     } catch (error) { console.error("Save error:", error); }
   };
 
@@ -434,15 +471,96 @@ const CourseDetails = () => {
           period={activeView} 
           remainingWeight={100 - displayWeight}
         />
-        <PeriodSelectionModal isOpen={isPeriodModalOpen} onClose={() => setIsPeriodModalOpen(false)} onSelect={handlePeriodSelection} isMidtermComplete={isFinalsUnlocked} />
+        <PeriodSelectionModal isOpen={isPeriodModalOpen} onClose={() => setIsPeriodModalOpen(false)} onSelect={handlePeriodSelection} isFinalsUnlocked={isFinalsUnlocked} />
         
         <AddAssessmentForm 
           isOpen={isEntryModalOpen} 
           periodName={activeView} 
           onClose={() => setIsEntryModalOpen(false)} 
           onSubmit={handleAssessmentSubmit} 
-          autoFillCSScore={pendingCSScore} 
-          />
+          autoFillCSScore={pendedCSScore} 
+        />
+
+        {/* --- ANIMATED COURSE COMPLETION SUCCESS OVERLAY MODAL --- */}
+        <AnimatePresence>
+          {showCongrats && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                className="bg-[#11141D] max-w-md w-full rounded-[2.5rem] border border-slate-800 p-8 text-center space-y-6 shadow-2xl"
+              >
+                <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl flex items-center justify-center text-emerald-400 mx-auto">
+                  <Award size={40} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-white tracking-tight uppercase italic">Congrats! Course Completed</h3>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                    Scheme: {courseInfo.midtermWeight}% Midterm / {courseInfo.finalWeight}% Finals
+                  </p>
+                </div>
+                <div className="bg-[#161B22] border border-slate-800/80 p-6 rounded-2xl space-y-1">
+                  <p className="text-[10px] text-slate-500 font-black tracking-widest uppercase">Overall Calculated GPA</p>
+                  <p className="text-5xl font-black text-emerald-400 italic tracking-tighter">
+                    {finalCalculatedScore !== "0.0" ? finalCalculatedScore : displayGPA}
+                  </p>
+                </div>
+                <p className="text-sm text-slate-300 font-medium px-4">
+                  Awesome job! This record has been finalized and structured for cross-semester GWA compiles.
+                </p>
+                <button 
+                  onClick={() => setShowCongrats(false)}
+                  className="w-full py-4 bg-violet-600 hover:bg-violet-500 active:scale-98 text-white font-black uppercase text-xs tracking-widest rounded-xl transition-all shadow-xl"
+                >
+                  Awesome!
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* --- ANIMATED COURSE COMPLETION CRITICALLY LOW MARK OVERLAY MODAL --- */}
+        <AnimatePresence>
+          {showFailure && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                className="bg-[#11141D] max-w-md w-full rounded-[2.5rem] border border-slate-800 p-8 text-center space-y-6 shadow-2xl"
+              >
+                <div className="w-20 h-20 bg-red-500/10 border border-red-500/30 rounded-3xl flex items-center justify-center text-red-400 mx-auto">
+                  <Frown size={40} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-white tracking-tight uppercase italic">Course Term Completed</h3>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                    Scheme: {courseInfo.midtermWeight}% Midterm / {courseInfo.finalWeight}% Finals
+                  </p>
+                </div>
+                <div className="bg-[#161B22] border border-slate-800/80 p-6 rounded-2xl space-y-1">
+                  <p className="text-[10px] text-slate-500 font-black tracking-widest uppercase">Overall Calculated GPA</p>
+                  <p className="text-5xl font-black text-red-500 italic tracking-tighter">
+                    {finalCalculatedScore !== "0.0" ? finalCalculatedScore : displayGPA}
+                  </p>
+                </div>
+                <p className="text-sm text-slate-300 font-medium px-4">
+                  Term benchmarks have closed out below passing thresholds. Review remaining balance sheets inside your core summary deck.
+                </p>
+                <button 
+                  onClick={() => setShowFailure(false)}
+                  className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white font-black uppercase text-xs tracking-widest rounded-xl transition-all shadow-xl"
+                >
+                  Close Record
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );
