@@ -4,7 +4,7 @@ import {
   Trash2, Plus, GraduationCap, CheckCircle, GitBranch, PieChart, Target, X, Lock, Unlock, AlertCircle, FastForward, Info, GitMerge, ListPlus, Award, Frown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
+import confetti from 'canvas-confetti'; 
 
 import { PeriodSelectionModal } from "../../grades/components/PeriodSelectionModal";
 import { AddAssessmentForm } from "../../grades/components/AddAssessmentForm";
@@ -36,16 +36,17 @@ const CourseDetails = () => {
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [finalCalculatedScore, setFinalCalculatedScore] = useState("0.0");
 
-  const midtermStatus = localStorage.getItem(`course_status_${id}`);
-  const isFinalsUnlocked = midtermStatus === 'PASSED' || midtermStatus === 'FAILED' || courseInfo.midtermGrade !== null;
+  const [midtermStatus, setMidtermStatus] = useState(localStorage.getItem(`course_status_${id}`));
 
   useEffect(() => { fetchData(); }, [id]);
 
   const fetchData = async () => {
     try {
       const courseRes = await fetch(`${API_BASE_URL}/api/courses/${id}`);
+      let updatedCourseData = null;
       if (courseRes.ok) {
         const data = await courseRes.json();
+        updatedCourseData = data;
         setCourseInfo({
           title: data.title,
           code: data.courseCode,
@@ -55,10 +56,22 @@ const CourseDetails = () => {
           midtermWeight: data.midtermWeight || 50, 
           finalWeight: data.finalWeight || 50      
         });
+        
+        // Synchronize reactive storage hook states
+        if (data.midtermGrade !== null) {
+          const status = parseFloat(data.midtermGrade) >= 3.0 ? 'PASSED' : 'FAILED';
+          localStorage.setItem(`course_status_${id}`, status);
+          setMidtermStatus(status);
+        }
       }
       const assessmentsRes = await fetch(`${API_BASE_URL}/api/assessments/course/${id}`);
       if (assessmentsRes.ok) setAssessments(await assessmentsRes.json());
-    } catch (error) { console.error("Error fetching data:", error); }
+      
+      return updatedCourseData;
+    } catch (error) { 
+      console.error("Error fetching data:", error); 
+      return null;
+    }
   };
 
   const currentViewAssessments = assessments
@@ -93,19 +106,18 @@ const CourseDetails = () => {
 
   const rawFinalsGpa = courseInfo.finalGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
 
-  // FIXED: Replaced toFixed with dynamic decimal truncation math to stop 4.075 from rounding up to 4.1
-  const getCalculatedDisplayGpa = () => {
+  const getCalculatedDisplayGpa = (freshCourseInfo = null) => {
+    const activeCourse = freshCourseInfo || courseInfo;
     if (activeView === 'MIDTERM') {
-      return courseInfo.midtermGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
+      return activeCourse.midtermGrade || (contribution > 0 ? transmuteToGPA(contribution) : "0.0");
     } else {
-      if (courseInfo.finalGrade) return courseInfo.finalGrade;
+      if (activeCourse.finalGrade) return activeCourse.finalGrade;
 
-      if (courseInfo.midtermGrade && rawFinalsGpa !== "0.0") {
-        const midVal = parseFloat(courseInfo.midtermGrade);
+      if (activeCourse.midtermGrade && rawFinalsGpa !== "0.0") {
+        const midVal = parseFloat(activeCourse.midtermGrade);
         const finVal = parseFloat(rawFinalsGpa);
-        const overallCalculatedGrade = (midVal * (courseInfo.midtermWeight / 100)) + (finVal * (courseInfo.finalWeight / 100));
+        const overallCalculatedGrade = (midVal * (activeCourse.midtermWeight / 100)) + (finVal * (activeCourse.finalWeight / 100));
         
-        // Exact floor down truncation
         const truncatedGpa = Math.floor(overallCalculatedGrade * 10) / 10;
         return truncatedGpa.toFixed(1);
       }
@@ -115,6 +127,9 @@ const CourseDetails = () => {
 
   const displayGPA = getCalculatedDisplayGpa();
   const currentStatus = (displayGPA !== "0.0" && parseFloat(displayGPA) >= 3.0) ? "Passing" : "Failing";
+  
+  // FIXED UI ACCESSIBILITY CONDITIONALS: Evaluates state hooks dynamically alongside state snapshot arrays
+  const isFinalsUnlocked = midtermStatus === 'PASSED' || midtermStatus === 'FAILED' || courseInfo.midtermGrade !== null;
 
   const handlePeriodSelection = async (period, manualData = null) => {
     const gradeValue = manualData && typeof manualData === 'object' ? manualData.gpa : manualData;
@@ -136,7 +151,10 @@ const CourseDetails = () => {
         if (response.ok) {
           const status = parseFloat(gradeValue) >= 3.0 ? 'PASSED' : 'FAILED';
           localStorage.setItem(`course_status_${id}`, status);
+          setMidtermStatus(status); // FIXED: Update state variant directly to drop lock rules
 
+          setCourseInfo(prev => ({ ...prev, midtermGrade: gradeValue.toString() }));
+          
           await fetchData(); 
           setActiveView('FINALS');
           setIsPeriodModalOpen(false);
@@ -219,9 +237,18 @@ const CourseDetails = () => {
         body: JSON.stringify(finalizePayload)
       });
 
-      // FIXED: Applied exact truncation block inside prediction resolver paths to keep overlays precise
-      if (isFinals && courseInfo.midtermGrade) {
-        const midVal = parseFloat(courseInfo.midtermGrade);
+      if (!isFinals) {
+        setCourseInfo(prev => ({ ...prev, midtermGrade: finalGPAValue.toString() }));
+        const status = parseFloat(finalGPAValue) >= 3.0 ? 'PASSED' : 'FAILED';
+        localStorage.setItem(`course_status_${id}`, status);
+        setMidtermStatus(status); // FIXED: Force change on active milestone tracks directly
+      }
+
+      const freshData = await fetchData();
+      const actualMidtermGrade = freshData?.midtermGrade || courseInfo.midtermGrade || (isFinals ? null : finalGPAValue.toString());
+
+      if (isFinals && actualMidtermGrade) {
+        const midVal = parseFloat(actualMidtermGrade);
         const finVal = parseFloat(finalGPAValue);
         const overallGPA = (midVal * (courseInfo.midtermWeight / 100)) + (finVal * (courseInfo.finalWeight / 100));
         
@@ -237,12 +264,7 @@ const CourseDetails = () => {
         } else {
           setShowFailure(true);
         }
-      } else {
-        localStorage.setItem(`course_status_${id}`, parseFloat(finalGPAValue) >= 3.0 ? 'PASSED' : 'FAILED');
       }
-
-      if (didAchieve && !isFinals) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-      fetchData();
     } catch (err) { console.error("Resolution Error:", err); }
   };
 
@@ -256,13 +278,13 @@ const CourseDetails = () => {
       });
       if (response.ok) { 
         setIsEntryModalOpen(false); 
-        await fetchData();
+        const freshData = await fetchData();
 
-        // FIXED: Applied dynamic truncation check here to ensure manual entries don't force rounding artifacts either
         if (activeView === 'FINALS' && formData.name.trim().toUpperCase() === 'FINAL EXAM') {
           setTimeout(() => {
-            if (courseInfo.midtermGrade) {
-              const midVal = parseFloat(courseInfo.midtermGrade);
+            const actualMidGrade = freshData?.midtermGrade || courseInfo.midtermGrade;
+            if (actualMidGrade) {
+              const midVal = parseFloat(actualMidGrade);
               const calculatedFinGpa = parseFloat(rawFinalsGpa);
               const summaryGpa = (midVal * (courseInfo.midtermWeight / 100)) + (calculatedFinGpa * (courseInfo.finalWeight / 100));
               
@@ -471,7 +493,9 @@ const CourseDetails = () => {
           period={activeView} 
           remainingWeight={100 - displayWeight}
         />
-        <PeriodSelectionModal isOpen={isPeriodModalOpen} onClose={() => setIsPeriodModalOpen(false)} onSelect={handlePeriodSelection} isFinalsUnlocked={isFinalsUnlocked} />
+        
+        {/* FIXED MODAL ATTR LINKAGE: Passes the true state context directly to drop prompt overrides */}
+        <PeriodSelectionModal isOpen={isPeriodModalOpen} onClose={() => setIsPeriodModalOpen(false)} onSelect={handlePeriodSelection} isMidtermComplete={isFinalsUnlocked} />
         
         <AddAssessmentForm 
           isOpen={isEntryModalOpen} 
